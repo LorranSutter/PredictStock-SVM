@@ -1,0 +1,23 @@
+TODO:
+    ❑ Check bollinger bands function consistency @file:///home/lorran/Documents/TCC/Codes/Indicators.py#32
+    ❑ Extremely Randomized Tree Methods to find best indicators
+
+Archive:
+    ✔ Check span and min_periods default (Chaikin) @file:///home/lorran/Documents/TCC/Codes/Indicators.py#209 @done(18-05-19 00:53)
+    ✔ Check span and min_periods default (Mass Index) @file:///home/lorran/Documents/TCC/Codes/Indicators.py#122 @done(18-05-19 01:10)
+    ✔ Check span and min_periods default (MACD) @file:///home/lorran/Documents/TCC/Codes/Indicators.py#112 @done(18-05-19 01:20)
+    ✔ TODO treat for Volume equals zero (problem in division by zero in ACCDIST, Chaikin, EOM) @done(18-05-21 23:52)
+    ✔ Think in how do not generate duplicates @file:///home/lorran/Documents/TCC/Codes/main.py#20 @done(18-05-25 19:44)
+    ✘ Relabel labels according new labels by multiclass classifier @cancelled(18-06-03 01:23)
+
+Future:
+    ❑ Feature selection
+        ❑ ICA (Independent Component Analysis)
+        ❑ Supported Sequential Forward Search (F_SSFS)
+        ❑ sklearn.feature_selection.RFE (Recursive Feature Elimination)
+        ❑ sklearn.ensemble.ExtraTreesClassifier
+        ❑ Extremely Randomized Tree
+        ❑ sklearn.feature_selection.RFE
+    ❑ Regression problem (predict value) SVR
+    ❑ Weighted Samples (?)
+    
