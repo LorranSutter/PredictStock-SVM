@@ -99,7 +99,7 @@ class Stock:
         self.df.dropna(inplace = True)
 
     # * Apply indicators
-    def applyIndicators(self, ind_funcs, ind_params, remNaN = True):
+    def applyIndicators(self, ind_funcs, ind_params, replaceInf = True, remNaN = True):
         for f, p in zip(ind_funcs, ind_params):
 
             # Calculate if inidicator is True
@@ -113,6 +113,10 @@ class Stock:
         default = set(self.__default_main_columns__)
         self.indicators_list = [col for col in self.df.columns if col not in default]
 
+        # Replace infinity values by NaN
+        if replaceInf:
+            self.df.replace([np.inf, -np.inf], np.nan, inplace = True)
+        
         # Remove rows which has at least one NA/NaN/NULL value 
         if remNaN:
             self.df.dropna(inplace = True)

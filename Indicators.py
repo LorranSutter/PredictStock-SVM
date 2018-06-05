@@ -1,8 +1,8 @@
 import pandas as pd
 
-# * Moving Average
-def MA(df, n):
-    df['MA_' + str(n)] = pd.Series.rolling(df['Close'], n).mean()
+# * Simple Moving Average
+def SMA(df, n):
+    df['SMA_' + str(n)] = pd.Series.rolling(df['Close'], n).mean()
     # return pd.Series.rolling(df['Close'], n).mean()
 
 # * Exponential Moving Average
@@ -131,7 +131,7 @@ def ADX(df, n, n_ADX):
 
         if UpMove > DoMove and UpMove > 0:
             UpD = UpMove
-        else:UpD = 0
+        else: UpD = 0
 
         UpI.append(UpD)
 
@@ -201,23 +201,31 @@ def Vortex(df, n):
 
 
 # * KST Oscillator
-def KST(df, r1, r2, r3, r4, n1, n2, n3, n4):
+def KST(df, r1, r2, r3, r4, n1, n2, n3, n4, sigLen = 9):
     M = df['Close'].diff(r1 - 1)
     N = df['Close'].shift(r1 - 1)
     roc1 = M / N
+
     M = df['Close'].diff(r2 - 1)
     N = df['Close'].shift(r2 - 1)
     roc2 = M / N
+
     M = df['Close'].diff(r3 - 1)
     N = df['Close'].shift(r3 - 1)
     roc3 = M / N
+
     M = df['Close'].diff(r4 - 1)
     N = df['Close'].shift(r4 - 1)
     roc4 = M / N
-    kst = pd.Series.rolling(roc1, n1).sum() + pd.Series.rolling(roc2, n2).sum() * 2 + pd.Series.rolling(roc3, n3).sum() * 3 + pd.Series.rolling(roc4, n4).sum() * 4
+
+    kst = pd.Series.rolling(roc1, n1).sum() + \
+          pd.Series.rolling(roc2, n2).sum() * 2 + \
+          pd.Series.rolling(roc3, n3).sum() * 3 + \
+          pd.Series.rolling(roc4, n4).sum() * 4
 
     params = '_'.join(map(str,[r1, r2, r3, r4, n1, n2, n3, n4]))
     df['KST_' + params] = kst
+    # df['KST_' + params + '_SMA_' + str(sigLen)] = pd.Series.rolling(df['Close'], sigLen).mean()
     # return kst.values
 
 

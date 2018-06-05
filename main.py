@@ -20,32 +20,33 @@ multiplier = 2.2
 middle = False
 n_fast = 12
 n_slow = 26
-n_ADX = 5
-r1, r2, r3, r4, n1, n2, n3, n4 = 2, 3, 4, 5, 5, 10, 15, 20
-r, s = 10, 5
+n_ADX = 14
+r1, r2, r3, r4, n1, n2, n3, n4 = 10, 15, 20, 30, 10, 10, 10, 15
+r, s = 25, 13
 num_clusters = 5
 nxt_day_predict = 7
 db_dir = 'db'
+extraRandomTree = True
 
 ind_funcs = [
-             [False, ind.MA],      # (df, n)
-             [True , ind.EMA],     # (df, n)
+             [False, ind.SMA],     # (df, n)
+             [False, ind.EMA],     # (df, n)
              [True , ind.MOM],     # (df, n)
              [False, ind.ROC],     # (df, n)
-             [True , ind.ATR],     # (df, n)
+             [False, ind.ATR],     # (df, n)
              [True , ind.BBANDS],  # (df, n, multiplier, middle)
              [False, ind.PPSR],    # (df)
              [False, ind.PPSRFIBO],# (df)
-             [False, ind.STOK],    # (df)
+             [True , ind.STOK],    # (df)
              [False, ind.STO],     # (df, n)
              [False, ind.TRIX],    # (df, n)
              [False, ind.ADX],     # (df, n, n_ADX)
-             [False, ind.MACD],    # (df, n_fast, n_slow)
+             [True , ind.MACD],    # (df, n_fast, n_slow)
              [False, ind.MassI],   # (df)
              [False, ind.Vortex],  # (df, n)
-             [False, ind.KST],     # (df, r1, r2, r3, r4, n1, n2, n3, n4)
+             [True , ind.KST],     # (df, r1, r2, r3, r4, n1, n2, n3, n4)
              [True , ind.RSI],     # (df, n)
-             [False, ind.TSI],     # (df, r, s)
+             [True , ind.TSI],     # (df, r, s)
              [False, ind.ACCDIST], # (df, n)
              [False, ind.Chaikin], # (df)
              [True , ind.MFI],     # (df, n)
@@ -91,10 +92,57 @@ ind_params = [
               (n,)
             ]
 
+ind_dict = {
+             'SMA' : ind.SMA,     # (df, n)
+             'EMA' : ind.EMA,     # (df, n)
+             'MOM' : ind.MOM,     # (df, n)
+             'ROC' : ind.ROC,     # (df, n)
+             'ATR' : ind.ATR,     # (df, n)
+             'BBANDS' : ind.BBANDS,  # (df, n, multiplier, middle)
+             'PPSR' : ind.PPSR,    # (df)
+             'PPSRFIBO' : ind.PPSRFIBO,# (df)
+             'STOK' : ind.STOK,    # (df)
+             'STO' : ind.STO,     # (df, n)
+             'TRIX' : ind.TRIX,    # (df, n)
+             'ADX' : ind.ADX,     # (df, n, n_ADX)
+             'MACD' : ind.MACD,    # (df, n_fast, n_slow)
+             'MassI' : ind.MassI,   # (df)
+             'Vortex' : ind.Vortex,  # (df, n)
+             'KST' : ind.KST,     # (df, r1, r2, r3, r4, n1, n2, n3, n4)
+             'RSI' : ind.RSI,     # (df, n)
+             'TSI' : ind.TSI,     # (df, r, s)
+             'ACCDIST' : ind.ACCDIST, # (df, n)
+             'Chaikin' : ind.Chaikin, # (df)
+             'MFI' : ind.MFI,     # (df, n)
+             'OBV' : ind.OBV,     # (df, n)
+             'FORCE' : ind.FORCE,   # (df, n)
+             'EOM' : ind.EOM,     # (df, n)
+             'CCI' : ind.CCI,     # (df, n)
+             'COPP' : ind.COPP,    # (df, n)
+             'KELCH' : ind.KELCH,   # (df, n)
+             'DONCH' : ind.DONCH,   # (df, n)
+             'ULTOSC' : ind.ULTOSC   # (df)
+             }
+
+if extraRandomTree:
+    ind_funcs = []
+    ind_params = []
+    with open('db/FeaturesTestOut.txt', 'r') as f:
+        for line in f:
+            line = line.split(',')
+            if len(line) == 1:
+                ind_funcs.append([True, ind_dict[line[0][:-1]]])
+                ind_params.append(None)
+            else:
+                ind_funcs.append([True, ind_dict[line[0]]])
+                params = line[1].split()
+                params = map(int, params)
+                ind_params.append(tuple(params))
+
 _gridSearch_ = True
 
 if __name__ == "__main__":
-    ticker = 'TSLA2'
+    ticker = 'ZTS'
 
     stock = Stock(ticker, considerOHL = False, train_test_data = True, train_size = 0.8)
 
@@ -102,25 +150,21 @@ if __name__ == "__main__":
     print()
     stock.fit_kSVMeans(num_clusters = 4,\
                        random_state_kmeans = None,\
-                       random_state_clf = 40,\
-                       classifier = None,\
+                       random_state_clf = None,\
+                       classifier = 'OneVsOne',\
                        consistent_clusters = True)
     print('split')
     stock.splitByLabel2()
     print('split end')
 
-    # for stockSVM in stock.stockSVMs:
-    #     print(len(stockSVM.values))
-
-    # ind.MA(df,3)
     stock.applyPredict(nxt_day_predict)
 
     # stock.fit(predictNext_k_day = nxt_day_predict,
     #           gridSearch = _gridSearch_, 
-    #           parameters = {'C' : np.linspace(2e-5,2e3,10), 'gamma' : np.linspace(2e-15,2e3,10)}, k_fold_num = 5)
+    #           parameters = {'C' : np.linspace(2e-5,2e3,20), 'gamma' : np.linspace(2e-15,2e3,5)}, k_fold_num = 5)
     stock.fit(predictNext_k_day = nxt_day_predict,
               gridSearch = _gridSearch_, 
-              parameters = {'C' : np.linspace(2e-5,2e3,10), 'gamma' : [2e-15]}, k_fold_num = 3)
+              parameters = {'C' : np.linspace(2e-5,2e3,100), 'gamma' : [2e-15]}, k_fold_num = 5)
     print()
 
     if _gridSearch_:
@@ -141,22 +185,11 @@ if __name__ == "__main__":
 
     l = len(stock.test)
     print("{0} days : {1:.5f}%".format(0, sum(res_preds_comp)/l))
-    for d in range(1,nxt_day_predict+10):
+    for d in range(1,nxt_day_predict+3):
         preds.append(preds.pop(0))
         res_preds_comp = [k == w for k,w in zip(stock.test_pred, preds)]
         print("{0} days : {1:.5f}%".format(d, sum(res_preds_comp)/l))
     print()
-
-    # stock.removeNaN()
-
-    # pred = df['predict_3_days'].values
-    # df = df.drop(['predict_3_days'], axis = 1).values
-
-    # parameters = {'C': np.linspace(10e-16,10e-10,100), 'gamma': np.linspace(10e-16,10e-10,100)}
-
-    # svc = svm.SVC()
-    # clf = GridSearchCV(svc, parameters, verbose=1, n_jobs=3)
-    # clf = clf.fit(df, pred)
 
     # ax1 = plt.subplot2grid((2,1),(0,0), rowspan=1, colspan=1)
     # ax2 = plt.subplot2grid((2,1),(1,0), rowspan=1, colspan=1)
