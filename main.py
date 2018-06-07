@@ -15,7 +15,7 @@ from KSVMeans import KSVMeans
 
 from Stock import Stock
 
-n = 7
+n = 5
 multiplier = 2.2
 middle = False
 n_fast = 12
@@ -27,70 +27,6 @@ num_clusters = 5
 nxt_day_predict = 7
 db_dir = 'db'
 extraRandomTree = True
-
-ind_funcs = [
-             [False, ind.SMA],     # (df, n)
-             [False, ind.EMA],     # (df, n)
-             [True , ind.MOM],     # (df, n)
-             [False, ind.ROC],     # (df, n)
-             [False, ind.ATR],     # (df, n)
-             [True , ind.BBANDS],  # (df, n, multiplier, middle)
-             [False, ind.PPSR],    # (df)
-             [False, ind.PPSRFIBO],# (df)
-             [True , ind.STOK],    # (df)
-             [False, ind.STO],     # (df, n)
-             [False, ind.TRIX],    # (df, n)
-             [False, ind.ADX],     # (df, n, n_ADX)
-             [True , ind.MACD],    # (df, n_fast, n_slow)
-             [False, ind.MassI],   # (df)
-             [False, ind.Vortex],  # (df, n)
-             [True , ind.KST],     # (df, r1, r2, r3, r4, n1, n2, n3, n4)
-             [True , ind.RSI],     # (df, n)
-             [True , ind.TSI],     # (df, r, s)
-             [False, ind.ACCDIST], # (df, n)
-             [False, ind.Chaikin], # (df)
-             [True , ind.MFI],     # (df, n)
-             [True , ind.OBV],     # (df, n)
-             [False, ind.FORCE],   # (df, n)
-             [False, ind.EOM],     # (df, n)
-             [True , ind.CCI],     # (df, n)
-             [False, ind.COPP],    # (df, n)
-             [False, ind.KELCH],   # (df, n)
-             [False, ind.ULTOSC],  # (df)
-             [False, ind.DONCH]    # (df, n)
-             ]
-
-ind_params = [
-              (n,),
-              (n,),
-              (n,),
-              (n,),
-              (n,),
-              (n, multiplier, middle),
-              None,
-              None,
-              None,
-              (n,),
-              (n,),
-              (n, n_ADX),
-              (n_fast, n_slow),
-              None,
-              (n,),
-              (r1, r2, r3, r4, n1, n2, n3, n4),
-              (n,),
-              (r, s),
-              (n,),
-              None,
-              (n,),
-              (n,),
-              (n,),
-              (n,),
-              (n,),
-              (n,),
-              (n,),
-              None,
-              (n,)
-            ]
 
 ind_dict = {
              'SMA' : ind.SMA,     # (df, n)
@@ -106,13 +42,13 @@ ind_dict = {
              'TRIX' : ind.TRIX,    # (df, n)
              'ADX' : ind.ADX,     # (df, n, n_ADX)
              'MACD' : ind.MACD,    # (df, n_fast, n_slow)
-             'MassI' : ind.MassI,   # (df)
-             'Vortex' : ind.Vortex,  # (df, n)
+             'MASS' : ind.MASS,   # (df)
+             'VORTEX' : ind.VORTEX,  # (df, n)
              'KST' : ind.KST,     # (df, r1, r2, r3, r4, n1, n2, n3, n4)
              'RSI' : ind.RSI,     # (df, n)
              'TSI' : ind.TSI,     # (df, r, s)
              'ACCDIST' : ind.ACCDIST, # (df, n)
-             'Chaikin' : ind.Chaikin, # (df)
+             'CHAIKIN' : ind.CHAIKIN, # (df)
              'MFI' : ind.MFI,     # (df, n)
              'OBV' : ind.OBV,     # (df, n)
              'FORCE' : ind.FORCE,   # (df, n)
@@ -125,37 +61,32 @@ ind_dict = {
              }
 
 if extraRandomTree:
-    ind_funcs = []
-    ind_params = []
+    ind_funcs_params = []
     with open('db/FeaturesTestOut.txt', 'r') as f:
         for line in f:
             line = line.split(',')
             if len(line) == 1:
-                ind_funcs.append([True, ind_dict[line[0][:-1]]])
-                ind_params.append(None)
+                ind_funcs_params.append([ind_dict[line[0][:-1]], None])
             else:
-                ind_funcs.append([True, ind_dict[line[0]]])
                 params = line[1].split()
                 params = map(int, params)
-                ind_params.append(tuple(params))
+                ind_funcs_params.append([ind_dict[line[0]], tuple(params)])
 
 _gridSearch_ = True
 
 if __name__ == "__main__":
-    ticker = 'ZTS'
+    ticker = 'TSLA2'
 
     stock = Stock(ticker, considerOHL = False, train_test_data = True, train_size = 0.8)
 
-    stock.applyIndicators(ind_funcs, ind_params)
+    stock.applyIndicators(ind_funcs_params)
     print()
     stock.fit_kSVMeans(num_clusters = 4,\
-                       random_state_kmeans = None,\
-                       random_state_clf = None,\
+                       random_state_kmeans = 40,\
+                       random_state_clf = 40,\
                        classifier = 'OneVsOne',\
                        consistent_clusters = True)
-    print('split')
     stock.splitByLabel2()
-    print('split end')
 
     stock.applyPredict(nxt_day_predict)
 
@@ -164,7 +95,7 @@ if __name__ == "__main__":
     #           parameters = {'C' : np.linspace(2e-5,2e3,20), 'gamma' : np.linspace(2e-15,2e3,5)}, k_fold_num = 5)
     stock.fit(predictNext_k_day = nxt_day_predict,
               gridSearch = _gridSearch_, 
-              parameters = {'C' : np.linspace(2e-5,2e3,100), 'gamma' : [2e-15]}, k_fold_num = 5)
+              parameters = {'C' : np.linspace(2e-5,2e3,50), 'gamma' : [2e-15]}, n_jobs = 2, k_fold_num = 5)
     print()
 
     if _gridSearch_:
@@ -183,13 +114,24 @@ if __name__ == "__main__":
 
     res_preds_comp = [k == w for k,w in zip(stock.test_pred, preds)]
 
-    l = len(stock.test)
+    test_pred = stock.test_pred.copy()
+    l = len(test_pred)
+
     print("{0} days : {1:.5f}%".format(0, sum(res_preds_comp)/l))
     for d in range(1,nxt_day_predict+3):
         preds.append(preds.pop(0))
         res_preds_comp = [k == w for k,w in zip(stock.test_pred, preds)]
         print("{0} days : {1:.5f}%".format(d, sum(res_preds_comp)/l))
     print()
+
+    # print("{0} days : {1:.5f}%".format(0, sum(res_preds_comp)/l))
+    # for d in range(1,nxt_day_predict+3):
+    #     preds.insert(0,np.nan)
+    #     test_pred.pop(-1)
+    #     l = len(test_pred)
+    #     res_preds_comp = [k == w for k,w in zip(test_pred, preds)]
+    #     print("{0} days : {1:.5f}%".format(d, sum(res_preds_comp)/l))
+    # print()
 
     # ax1 = plt.subplot2grid((2,1),(0,0), rowspan=1, colspan=1)
     # ax2 = plt.subplot2grid((2,1),(1,0), rowspan=1, colspan=1)

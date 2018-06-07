@@ -7,6 +7,7 @@ from collections import Counter
 
 from sklearn import svm
 from sklearn.cluster import KMeans
+from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.multiclass import OneVsOneClassifier, OneVsRestClassifier
 
 from StockSVM import StockSVM
@@ -18,6 +19,9 @@ class Stock:
         self.__db_dir__ = 'db/stocks'
         self.__OHL__  = []
         self.__default_columns__ = ['Date','Close','High','Low','Open','Volume']
+        self.__train_test_data__ = train_test_data
+        self.modelExtraTreesClf = None
+        self.extraTreesFeatures = None
 
         if not considerOHL:
             self.__OHL__ = ['Open','High','Low']
@@ -32,12 +36,10 @@ class Stock:
         
         self.__default_main_columns__ = self.df.columns.tolist()
 
-        self.train_test_data = False
-        if train_test_data:
+        if self.__train_test_data__:
             if train_size <= 0 or train_size >= 1:
                 print('train_size param must be in (0,1) interval!')
                 sys.exit()
-            self.train_test_data = True
             self.train_size = train_size
             self.test = None
             self.test_pred = []
@@ -98,20 +100,62 @@ class Stock:
     def removeNaN(self):
         self.df.dropna(inplace = True)
 
-    # * Apply indicators
-    def applyIndicators(self, ind_funcs, ind_params, replaceInf = True, remNaN = True):
-        for f, p in zip(ind_funcs, ind_params):
+    # * Extremely Randomized Tree Classifier algorithm
+    def __fit_ExtraTreesClassifier__(self, features, targets, n_estimators = 10, random_state = None):
+        self.modelExtraTreesClf = ExtraTreesClassifier(n_estimators = n_estimators,
+                                                       n_jobs = -1,
+                                                       random_state = random_state)
+        self.modelExtraTreesClf.fit(features, targets)
 
-            # Calculate if inidicator is True
-            if f[0]:
-                if p != None:
-                    f[1](self.df, *p)
-                else:
-                    f[1](self.df)
-                print(f[1].__name__ + " indicator calculated!")
+    # * Apply Extra Trees clf to the features
+    def applyExtraTreesClassifier(self, predictNext_k_day,
+                                        n_estimators = 10,
+                                        random_state = None,
+                                        extraTreesFirst = 0.2):
+        self.modelExtraTreesClf = None
+        if extraTreesFirst < 0 or extraTreesFirst > 1:
+            print('extraTressFirsts param must be in (0,1) interval!')
+            sys.exit()
+        self.extraTreesFirst = extraTreesFirst
+
+        targets = None
+        found_target = False
+        for col in self.df.columns:
+            if 'predict' in col:
+                col = col.split('_') # Split predict_k_days column
+
+                # Check if predictNext_k_day day is already applied
+                if int(col[1]) == predictNext_k_day:
+                    # ! IMPORTANT
+                    # TODO Apply shift(predictNext_k_day) / append and pop
+                    targets = self.df[col].values
+                    found_target = True
+                    break
+        
+        if not found_target:
+            print("Predict {0} day param not applied yet!".format(predictNext_k_day))
+            sys.exit()
+        
+        features = [self.df[col].values for col in self.indicators_list]
+        self.__fit_ExtraTreesClassifier__(features, targets, n_estimators = n_estimators, random_state = random_state)
+
+        features = {k : w for k,w in zip(self.indicators_list, self.modelExtraTreesClf.feature_importances_)}
+        features = sorted(features.items(), key = lambda x: x[1], reverse = True)
+
+        split_size = int(len(features))
+        self.extraTreesFeatures = features[:split_size]
+
+    # * Apply indicators
+    def applyIndicators(self, ind_funcs_params, replaceInf = True, remNaN = True):
+        for func_param in ind_funcs_params:
+            if func_param[1] != None:
+                func_param[0](self.df, *func_param[1])
+            else:
+                func_param[0](self.df)
+            print(func_param[0].__name__ + " indicator calculated!")
         
         default = set(self.__default_main_columns__)
-        self.indicators_list = [col for col in self.df.columns if col not in default]
+        self.indicators_list = [col for col in self.df.columns if col not in default and 'predict' not in col]
 
         # Replace infinity values by NaN
         if replaceInf:
@@ -121,7 +165,7 @@ class Stock:
         if remNaN:
             self.df.dropna(inplace = True)
         
-        if self.train_test_data:
+        if self.__train_test_data__:
             self.__train_test_split__()
     
     # * Say if all clusters has at least num_clusters items
@@ -137,11 +181,16 @@ class Stock:
 
     # * K-Means algorithm
     def __fit_KMeans__(self, num_clusters = 5, random_state_kmeans = None):
-        self.clf = KMeans(n_clusters = num_clusters, init = 'k-means++', algorithm = 'full', n_jobs = -1, random_state = random_state_kmeans)
+        self.clf = KMeans(n_clusters = num_clusters,
+                          init = 'k-means++',
+                          algorithm = 'full',
+                          n_jobs = -1,
+                          random_state = random_state_kmeans)
         self.clf = self.clf.fit(self.df.values)
         
         return self.clf.predict(self.df.values)
 
+    # * Multiclass classifier algorithm
     def __fit_Multiclass_Classifier__(self, classifier, random_state_clf, labels):
         if classifier == 'OneVsOne':
             self.clf = OneVsOneClassifier(
@@ -197,14 +246,15 @@ class Stock:
             print("k_days must be greater than 0!")
             sys.exit()
 
-        prices = self.df['Close'].values
         predict_next = [np.nan for k in range(len(self.df.index))]
-
-        if self.train_test_data:
-            prices = np.append(prices, self.test['Close'].values)
+        if self.__train_test_data__:
             predict_next.extend([np.nan for k in range(len(self.test.index))])
 
         if k_days == 1:
+            prices = self.df['Close'].values
+            if self.__train_test_data__:
+                prices = np.append(self.df['Close'].values, self.test['Close'].values)
+
             for k in range(len(prices) - 1):
                 if prices[k+1] > prices[k]:
                     predict_next[k] = 1
@@ -213,11 +263,12 @@ class Stock:
                 else:
                     predict_next[k] = 0
         else:
-            if self.train_test_data:
+            if self.__train_test_data__:
                 sma = self.df['Close'].append(self.test['Close'])
                 sma = sma.rolling(k_days).mean().values
             else:
                 sma = self.df['Close'].rolling(k_days).mean().values
+
             for k in range(k_days - 1, len(sma) - k_days):
                 if sma[k + k_days] > sma[k]:
                     predict_next[k] = 1
@@ -226,7 +277,7 @@ class Stock:
                 else:
                     predict_next[k] = 0
         
-        if self.train_test_data:
+        if self.__train_test_data__:
             self.df['predict_' + str(k_days) + '_days'] = predict_next[:len(self.df.index)]
             self.test_pred = predict_next[len(self.df.index):]
         else:

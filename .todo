@@ -20,4 +20,9 @@ Future:
         ❑ sklearn.feature_selection.RFE
     ❑ Regression problem (predict value) SVR
     ❑ Weighted Samples (?)
+    ❑ Visualization with T-SNE
+    ❑ Regression model
+        ❑ Talk lots about stock prediction, example of regression model
+            ❑ https://www.youtube.com/watch?v=7vunJlqLZok&list=PL2-dafEMk2A5_gVeGI-TE1L02AbhU8agc
+            ❑ https://github.com/llSourcell/AI_in_Finance/blob/master/app.py
     

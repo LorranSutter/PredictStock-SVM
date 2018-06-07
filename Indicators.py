@@ -44,13 +44,13 @@ def BBANDS(df, n, multiplier = 2, middle = False):
     b1 = 4 * msd / ma
     b2 = (df['Close'] - ma + multiplier * msd) / (4 * msd)
 
-    df['BB_Up_' + str(n)] = b1
+    df['BBANDSup_' + str(n)] = b1
 
     if middle:
-        df['BB_Middle_' + str(n)] = ma
+        df['BBANDSmiddle_' + str(n)] = ma
         # return ma.values, b1.values, b2.values
     
-    df['BB_Down_' + str(n)] = b2
+    df['BBANDSdown_' + str(n)] = b2
     # return b1.values, b2.values
 
 # * Pivot Points, Supports and Resistances
@@ -87,12 +87,12 @@ def PPSRFIBO(df):
     r3_fibo = pd.Series(pp + 1     * (df['High'] - df['Low']))
 
     df['PP'] = pp
-    df['R1_FIBO'] = r1_fibo
-    df['S1_FIBO'] = s1_fibo
-    df['R2_FIBO'] = r2_fibo
-    df['S2_FIBO'] = s2_fibo
-    df['R3_FIBO'] = r3_fibo
-    df['S3_FIBO'] = s3_fibo
+    df['R1fibo'] = r1_fibo
+    df['S1fibo'] = s1_fibo
+    df['R2fibo'] = r2_fibo
+    df['S2fibo'] = s2_fibo
+    df['R3fibo'] = r3_fibo
+    df['S3fibo'] = s3_fibo
     # return pp.values, s1_fibo.values, s2_fibo.values, s3_fibo.values, r1_fibo.values r2_fibo.values, r3_fibo.values
 
 # * Stochastic oscillator %K
@@ -165,23 +165,23 @@ def MACD(df, n_fast = 12, n_slow = 26):
     macdDiff = pd.Series(macd - macdSign)
 
     df['MACD_'        + str(n_fast) + '_' + str(n_slow)] = macd
-    df['MACD_Signal_' + str(n_fast) + '_' + str(n_slow)] = macdSign
-    df['MACD_Diff_'   + str(n_fast) + '_' + str(n_slow)] = macdDiff
+    df['MACDsignal_' + str(n_fast) + '_' + str(n_slow)] = macdSign
+    df['MACDdiff_'   + str(n_fast) + '_' + str(n_slow)] = macdDiff
     # return macd.values, macdSign.values, macdDiff.values
 
 # * Mass Index
-def MassI(df):
+def MASS(df):
     Range = df['High'] - df['Low']
     ex1 = pd.Series.ewm(Range, span = 9, min_periods = 8).mean()
     ex2 = pd.Series.ewm(ex1, span = 9, min_periods = 8).mean()
     Mass = ex1 / ex2
-    MassI = pd.Series.rolling(Mass, 25).sum()
+    Mass = pd.Series.rolling(Mass, 25).sum()
 
-    df['MassI'] = MassI
+    df['MASS'] = Mass
     # return MassI.values
 
 # * Vortex Indicator: http://www.vortexindicator.com/VFX_VORTEX.PDF
-def Vortex(df, n):
+def VORTEX(df, n):
     tr = [0]
     for k in range(len(df.index) - 1):
         Range = max(df['High'][k + 1], df['Close'][k]) - min(df['Low'][k + 1], df['Close'][k])
@@ -196,7 +196,7 @@ def Vortex(df, n):
     tr = pd.Series(tr)
     vi = pd.Series.rolling(vm, n).sum() / pd.Series.rolling(tr, n).sum()
 
-    df['Vortex_' + str(n)] = vi.values
+    df['VORTEX_' + str(n)] = vi.values
     # return vi.values
 
 
@@ -274,11 +274,11 @@ def ACCDIST(df, n):
     # return roc.values
 
 # * Chaikin Oscillator
-def Chaikin(df):
+def CHAIKIN(df):
     ad = (2 * df['Close'] - df['High'] - df['Low']) / (df['High'] - df['Low']) * df['Volume']
     Chaikin = pd.Series.ewm(ad, span = 3, min_periods = 2).mean() - pd.Series.ewm(ad, span = 10, min_periods = 9).mean()
     
-    df['Chaikin'] = Chaikin
+    df['CHAIKIN'] = Chaikin
     # return Chaikin.values
 
 # * Money Flow Index and Ratio
@@ -354,9 +354,9 @@ def KELCH(df, n):
     kelChU = pd.Series.rolling((4 * df['High'] - 2 * df['Low'] + df['Close']) / 3, n).mean().values
     kelChD = pd.Series.rolling((-2 * df['High'] + 4 * df['Low'] + df['Close']) / 3, n).mean().values
 
-    df['KelchM_' + str(n)] = kelChM
-    df['KelchU_' + str(n)] = kelChU
-    df['KelchD_' + str(n)] = kelChD
+    df['KELCHmiddle_' + str(n)] = kelChM
+    df['KELCHup_' + str(n)] = kelChU
+    df['KELCHdown_' + str(n)] = kelChD
     # return kelChM, kelChU, kelChD
 
 # * Ultimate Oscillator
@@ -375,7 +375,7 @@ def ULTOSC(df):
                      (2 * pd.Series.rolling(BP_l, 14).sum()  / pd.Series.rolling(TR_l, 14).sum()) + \
                      (    pd.Series.rolling(BP_l, 28).sum()  / pd.Series.rolling(TR_l, 28).sum()))
     
-    df['UltOsc'] = UltO.values
+    df['ULTOSC'] = UltO.values
     # return UltO.values
 
 # * Donchian Channel

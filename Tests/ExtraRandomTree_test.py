@@ -6,6 +6,7 @@ import Indicators as ind
 from Stock import Stock
 
 from sklearn.ensemble import ExtraTreesClassifier
+from sklearn.ensemble import RandomForestClassifier
 
 ind_dict = {
              'SMA' : ind.SMA,     # (df, n)
@@ -21,13 +22,13 @@ ind_dict = {
              'TRIX' : ind.TRIX,    # (df, n)
              'ADX' : ind.ADX,     # (df, n, n_ADX)
              'MACD' : ind.MACD,    # (df, n_fast, n_slow)
-             'MassI' : ind.MassI,   # (df)
-             'Vortex' : ind.Vortex,  # (df, n)
+             'MASS' : ind.MASS,   # (df)
+             'VORTEX' : ind.VORTEX,  # (df, n)
              'KST' : ind.KST,     # (df, r1, r2, r3, r4, n1, n2, n3, n4)
              'RSI' : ind.RSI,     # (df, n)
              'TSI' : ind.TSI,     # (df, r, s)
              'ACCDIST' : ind.ACCDIST, # (df, n)
-             'Chaikin' : ind.Chaikin, # (df)
+             'CHAIKIN' : ind.CHAIKIN, # (df)
              'MFI' : ind.MFI,     # (df, n)
              'OBV' : ind.OBV,     # (df, n)
              'FORCE' : ind.FORCE,   # (df, n)
@@ -57,16 +58,10 @@ db_dir = 'db'
 ticker = 'TSLA2'
 days_predict = 7
 
-# Generate inf values
-# ACCDIST,1
-# ACCDIST,3
-# ACCDIST,5
-# ACCDIST,10
-# ACCDIST,12
-# ACCDIST,13
-# ACCDIST,14
-
-df = pd.read_csv(db_dir + '/{0}.csv'.format(ticker), parse_dates = True)
+if 'TSLA' in ticker:
+    df = pd.read_csv(db_dir + '/{0}.csv'.format(ticker), parse_dates = True)
+else:
+    df = pd.read_csv(db_dir + '/stocks/{0}/{1}.csv'.format(ticker[0].upper(), ticker), parse_dates = True)
 
 stock = Stock(ticker, considerOHL = False, train_test_data = False)
 
@@ -89,14 +84,19 @@ func_importance = {k : w for k,w in zip(X.columns, model.feature_importances_)}
 
 func_imp_sort = sorted(func_importance.items(), key = lambda x: x[1], reverse=True)
 
-split_size = int(len(func_imp_sort)*0.1)
+split_size = int(len(func_imp_sort))
 first_func_imp_sort = func_imp_sort[:split_size]
 
 # Have problems with names like MACD_Signal and BB_Up, '_' into the name
 with open('db/FeaturesTestOut.txt','w') as f:
     for func_imp in first_func_imp_sort:
         func_imp = func_imp[0].split('_')
-        func = func_imp[0] + ',' + ' ' + ' '.join(func_imp[1:])
+        func_name = ''
+        for letter in func_imp[0]:
+            if letter.islower():
+                break
+            func_name += letter
+        func = func_name + ',' + ' ' + ' '.join(func_imp[1:])
         f.write(func + '\n')
 
 # stock.df.isnull().sum().values
