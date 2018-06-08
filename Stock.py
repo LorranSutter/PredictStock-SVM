@@ -20,8 +20,13 @@ class Stock:
         self.__OHL__  = []
         self.__default_columns__ = ['Date','Close','High','Low','Open','Volume']
         self.__train_test_data__ = train_test_data
-        self.modelExtraTreesClf = None
-        self.extraTreesFeatures = None
+        self.__mapDayIdExtraTreesClf__ = dict()
+        self.modelExtraTreesClf = []
+        self.extraTreesFeatures = []
+        self.indicators_list = []
+        self.clf = None
+        self.stockSVMs = []
+        self.available_labels = []
 
         if not considerOHL:
             self.__OHL__ = ['Open','High','Low']
@@ -33,7 +38,7 @@ class Stock:
 
         if 'Volume' in self.df.columns and remVolZero:
             self.df = self.df[self.df['Volume'] != 0]
-        
+
         self.__default_main_columns__ = self.df.columns.tolist()
 
         if self.__train_test_data__:
@@ -43,11 +48,6 @@ class Stock:
             self.train_size = train_size
             self.test = None
             self.test_pred = []
-        
-        self.indicators_list = []
-        self.clf = None
-        self.stockSVMs = []
-        self.available_labels = []
     
     def __repr__(self):
         return self.df.__repr__()
@@ -101,34 +101,40 @@ class Stock:
         self.df.dropna(inplace = True)
 
     # * Extremely Randomized Tree Classifier algorithm
-    def __fit_ExtraTreesClassifier__(self, features, targets, n_estimators = 10, random_state = None):
-        self.modelExtraTreesClf = ExtraTreesClassifier(n_estimators = n_estimators,
-                                                       n_jobs = -1,
-                                                       random_state = random_state)
-        self.modelExtraTreesClf.fit(features, targets)
+    def __fit_ExtraTreesClassifier__(self, features, targets, predictNext_k_day, n_estimators = 10, random_state = None):
+        if predictNext_k_day not in self.__mapDayIdExtraTreesClf__.keys():
+            self.__mapDayIdExtraTreesClf__[predictNext_k_day] = len(self.__mapDayIdExtraTreesClf__)
+
+            self.modelExtraTreesClf.append(ExtraTreesClassifier(n_estimators = n_estimators,
+                                                                n_jobs = -1,
+                                                                random_state = random_state))
+        else:
+            i = self.__mapDayIdExtraTreesClf__[predictNext_k_day]
+            self.modelExtraTreesClf[i] = ExtraTreesClassifier(n_estimators = n_estimators,
+                                                              n_jobs = -1,
+                                                              random_state = random_state)
+        i = self.__mapDayIdExtraTreesClf__[predictNext_k_day]
+        self.modelExtraTreesClf[i].fit(features, targets)
 
     # * Apply Extra Trees clf to the features
     def applyExtraTreesClassifier(self, predictNext_k_day,
                                         n_estimators = 10,
                                         random_state = None,
                                         extraTreesFirst = 0.2):
-        self.modelExtraTreesClf = None
         if extraTreesFirst < 0 or extraTreesFirst > 1:
             print('extraTressFirsts param must be in (0,1) interval!')
             sys.exit()
         self.extraTreesFirst = extraTreesFirst
 
-        targets = None
+        self.targets = None
         found_target = False
         for col in self.df.columns:
             if 'predict' in col:
-                col = col.split('_') # Split predict_k_days column
+                col_split = col.split('_') # Split predict_k_days column
 
                 # Check if predictNext_k_day day is already applied
-                if int(col[1]) == predictNext_k_day:
-                    # ! IMPORTANT
-                    # TODO Apply shift(predictNext_k_day) / append and pop
-                    targets = self.df[col].values
+                if int(col_split[1]) == predictNext_k_day:
+                    self.targets = self.df[col].values
                     found_target = True
                     break
         
@@ -136,14 +142,26 @@ class Stock:
             print("Predict {0} day param not applied yet!".format(predictNext_k_day))
             sys.exit()
         
-        features = [self.df[col].values for col in self.indicators_list]
-        self.__fit_ExtraTreesClassifier__(features, targets, n_estimators = n_estimators, random_state = random_state)
+        self.targets = self.targets[~np.isnan(self.targets)]
 
-        features = {k : w for k,w in zip(self.indicators_list, self.modelExtraTreesClf.feature_importances_)}
-        features = sorted(features.items(), key = lambda x: x[1], reverse = True)
+        # Remove rows correspondent to NaN values in targets already removed above
+        if self.__train_test_data__:
+            self.features = self.df[self.indicators_list].iloc[predictNext_k_day-1:]
+        else:
+            self.features = self.df[self.indicators_list].iloc[predictNext_k_day-1:-predictNext_k_day]
+        
+        self.__fit_ExtraTreesClassifier__(self.features, self.targets, predictNext_k_day, n_estimators = n_estimators, random_state = random_state)
 
-        split_size = int(len(features))
-        self.extraTreesFeatures = features[:split_size]
+        # Sort features based in its importances
+        i = self.__mapDayIdExtraTreesClf__[predictNext_k_day]
+        self.features = {k : w for k,w in zip(self.indicators_list, self.modelExtraTreesClf[i].feature_importances_)}
+        self.features = sorted(self.features.items(), key = lambda x: x[1], reverse = True)
+
+        split_size = int(len(self.features))
+        if len(self.modelExtraTreesClf) > len(self.extraTreesFeatures):
+            self.extraTreesFeatures.append(self.features[:split_size])
+        else:
+            self.extraTreesFeatures[i] = self.features[:split_size]
 
     # * Apply indicators
     def applyIndicators(self, ind_funcs_params, replaceInf = True, remNaN = True):
@@ -180,57 +198,66 @@ class Stock:
         return True
 
     # * K-Means algorithm
-    def __fit_KMeans__(self, num_clusters = 5, random_state_kmeans = None):
+    def __fit_KMeans__(self, df, num_clusters = 5, random_state_kmeans = None):
         self.clf = KMeans(n_clusters = num_clusters,
                           init = 'k-means++',
                           algorithm = 'full',
                           n_jobs = -1,
                           random_state = random_state_kmeans)
-        self.clf = self.clf.fit(self.df.values)
+        self.clf = self.clf.fit(df.values)
         
-        return self.clf.predict(self.df.values)
+        return self.clf.predict(df.values)
 
     # * Multiclass classifier algorithm
-    def __fit_Multiclass_Classifier__(self, classifier, random_state_clf, labels):
+    def __fit_Multiclass_Classifier__(self, df, classifier, random_state_clf, labels):
         if classifier == 'OneVsOne':
             self.clf = OneVsOneClassifier(
                                             svm.LinearSVC(random_state = random_state_clf))\
-                                            .fit(self.df.drop(['labels_kmeans'], axis = 1).values, labels)
+                                            .fit(df.values, labels)
         elif classifier == 'OneVsRest':
             self.clf = OneVsRestClassifier(
                                             svm.LinearSVC(random_state = random_state_clf))\
-                                            .fit(self.df.drop(['labels_kmeans'], axis = 1).values, labels)
+                                            .fit(df.values, labels)
         else:
             print('Invalid input classifier!')
             sys.exit()
         
-        return self.clf.predict(self.df.drop(['labels_kmeans'], axis = 1).values)
+        return self.clf.predict(df.values)
 
-    # ! Improve
     # * K-SVMeans clustering
-    def fit_kSVMeans(self, num_clusters = 5, classifier = 'OneVsOne', random_state_kmeans = None, random_state_clf = None, consistent_clusters = False):
-        for k in self.__OHL__:
-            if k in self.df.columns:
-                self.df = self.df.drop(k, axis = 1)
+    def fit_kSVMeans(self, num_clusters = 5, 
+                           classifier = 'OneVsOne',
+                           random_state_kmeans = None,
+                           random_state_clf = None,
+                           consistent_clusters_kmeans = False,
+                           consistent_clusters_multiclass = False):
+        self.df2 = self.df.copy()
+        for col in self.df2.columns:
+            if col in self.__OHL__:
+                self.df2 = self.df2.drop(col, axis = 1)
+            elif 'predict' in col:
+                self.df2 = self.df2.drop(col, axis = 1)
+            elif 'labels' in col:
+                self.df2 = self.df2.drop(col, axis = 1)
         
-        labels = self.__fit_KMeans__(num_clusters = num_clusters, random_state_kmeans = random_state_kmeans)
-
-        if consistent_clusters:
-            print('KMeans')
-            while not self.__consistent_clusters__(num_clusters, labels):
-                labels = self.__fit_KMeans__(num_clusters = num_clusters, random_state_kmeans = None)
-                print()
+        labels = self.__fit_KMeans__(self.df2, num_clusters = num_clusters, random_state_kmeans = random_state_kmeans)
 
         self.df['labels_kmeans'] = labels
+        
+        if consistent_clusters_kmeans:
+            print('KMeans')
+            while not self.__consistent_clusters__(num_clusters, labels):
+                labels = self.__fit_KMeans__(self.df2, num_clusters = num_clusters, random_state_kmeans = None)
+                print()
 
         if classifier is not None:
-            labels_clf = self.__fit_Multiclass_Classifier__(classifier = classifier, random_state_clf = random_state_clf, labels = labels)
-            if consistent_clusters:
+            labels_clf = self.__fit_Multiclass_Classifier__(self.df2, classifier = classifier, random_state_clf = random_state_clf, labels = labels)
+            if consistent_clusters_multiclass:
                 print('Multiclass')
                 while not self.__consistent_clusters__(max(labels_clf) + 1, labels_clf):
-                    labels_clf = self.__fit_Multiclass_Classifier__(classifier = classifier, random_state_clf = None, labels = labels)
+                    labels_clf = self.__fit_Multiclass_Classifier__(self.df2, classifier = classifier, random_state_clf = None, labels = labels)
                     print()
-        
+
         if classifier is not None:
             self.df['labels'] = labels_clf
         else:
@@ -253,7 +280,7 @@ class Stock:
         if k_days == 1:
             prices = self.df['Close'].values
             if self.__train_test_data__:
-                prices = np.append(self.df['Close'].values, self.test['Close'].values)
+                prices = np.append(prices, self.test['Close'].values)
 
             for k in range(len(prices) - 1):
                 if prices[k+1] > prices[k]:
@@ -279,7 +306,7 @@ class Stock:
         
         if self.__train_test_data__:
             self.df['predict_' + str(k_days) + '_days'] = predict_next[:len(self.df.index)]
-            self.test_pred = predict_next[len(self.df.index):]
+            self.test_pred = predict_next[len(self.df.index):]            
         else:
             self.df['predict_' + str(k_days) + '_days'] = predict_next
 
@@ -353,4 +380,12 @@ class Stock:
         return self.clf.predict(df)
 
     def predict_SVM(self, cluster_id, df):
+        if len(self.stockSVMs[cluster_id].values) == 0:
+            biggest = cluster_id
+            for k, stockSVM in enumerate(self.stockSVMs):
+                lenSVM = len(stockSVM[k].values)
+                if lenSVM > biggest:
+                    biggest = lenSVM
+                    cluster_id = k
+
         return self.stockSVMs[cluster_id].predict(df)

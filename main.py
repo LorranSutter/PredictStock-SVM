@@ -15,14 +15,6 @@ from KSVMeans import KSVMeans
 
 from Stock import Stock
 
-n = 5
-multiplier = 2.2
-middle = False
-n_fast = 12
-n_slow = 26
-n_ADX = 14
-r1, r2, r3, r4, n1, n2, n3, n4 = 10, 15, 20, 30, 10, 10, 10, 15
-r, s = 25, 13
 num_clusters = 5
 nxt_day_predict = 7
 db_dir = 'db'
@@ -73,19 +65,27 @@ if extraRandomTree:
                 ind_funcs_params.append([ind_dict[line[0]], tuple(params)])
 
 _gridSearch_ = True
+_train_test_data_ = True
 
 if __name__ == "__main__":
     ticker = 'TSLA2'
 
-    stock = Stock(ticker, considerOHL = False, train_test_data = True, train_size = 0.8)
+    stock = Stock(ticker, considerOHL = False, train_test_data = _train_test_data_, train_size = 0.8)
+
+    # ! I have a problem
+    # ! I should create cluterizations for each predicted day (3,5,7,...)
+    # ! So that I would need a list of clfs into Stock class
+    # ! But I made the program to follow an order. What prevents a clf list creation
+    # ! I tryed to run this order: indicators, predict, split, K-SVMeans
+    # ! But stockSVMs are created based on labels from clusterization
 
     stock.applyIndicators(ind_funcs_params)
     print()
     stock.fit_kSVMeans(num_clusters = 4,\
                        random_state_kmeans = 40,\
-                       random_state_clf = 40,\
+                       random_state_clf = None,\
                        classifier = 'OneVsOne',\
-                       consistent_clusters = True)
+                       consistent_clusters_multiclass = True)
     stock.splitByLabel2()
 
     stock.applyPredict(nxt_day_predict)
@@ -95,7 +95,7 @@ if __name__ == "__main__":
     #           parameters = {'C' : np.linspace(2e-5,2e3,20), 'gamma' : np.linspace(2e-15,2e3,5)}, k_fold_num = 5)
     stock.fit(predictNext_k_day = nxt_day_predict,
               gridSearch = _gridSearch_, 
-              parameters = {'C' : np.linspace(2e-5,2e3,50), 'gamma' : [2e-15]}, n_jobs = 2, k_fold_num = 5)
+              parameters = {'C' : np.linspace(2e-5,2e3,10), 'gamma' : [2e-15]}, n_jobs = 2, k_fold_num = 3)
     print()
 
     if _gridSearch_:
@@ -105,33 +105,36 @@ if __name__ == "__main__":
                     .format(stockSVM.clf.best_estimator_.C,stockSVM.clf.best_estimator_.gamma))
         print()
 
-    labels_test = stock.predict_SVM_Cluster(stock.test)
+    if _train_test_data_:
+        labels_test = stock.predict_SVM_Cluster(stock.test)
 
-    preds = []
-    for k, lab in enumerate(labels_test):
-        preds.append(int(stock.predict_SVM(lab, stock.test[k:k+1])))
-        # print(lab, stock.predict_SVM(lab, stock.test[k:k+1]))
+        preds = []
+        for k, lab in enumerate(labels_test):
+            preds.append(int(stock.predict_SVM(lab, stock.test[k:k+1])))
+            # print(lab, stock.predict_SVM(lab, stock.test[k:k+1]))
 
-    res_preds_comp = [k == w for k,w in zip(stock.test_pred, preds)]
-
-    test_pred = stock.test_pred.copy()
-    l = len(test_pred)
-
-    print("{0} days : {1:.5f}%".format(0, sum(res_preds_comp)/l))
-    for d in range(1,nxt_day_predict+3):
-        preds.append(preds.pop(0))
         res_preds_comp = [k == w for k,w in zip(stock.test_pred, preds)]
-        print("{0} days : {1:.5f}%".format(d, sum(res_preds_comp)/l))
-    print()
 
-    # print("{0} days : {1:.5f}%".format(0, sum(res_preds_comp)/l))
-    # for d in range(1,nxt_day_predict+3):
-    #     preds.insert(0,np.nan)
-    #     test_pred.pop(-1)
-    #     l = len(test_pred)
-    #     res_preds_comp = [k == w for k,w in zip(test_pred, preds)]
-    #     print("{0} days : {1:.5f}%".format(d, sum(res_preds_comp)/l))
-    # print()
+        preds2 = preds.copy()
+        test_pred2 = stock.test_pred.copy()
+        l = len(preds)
+
+        print("{0} days : {1:.5f}%".format(0, sum(res_preds_comp)/l))
+        for d in range(1,nxt_day_predict+3):
+            preds.append(preds.pop(0))
+            res_preds_comp = [k == w for k,w in zip(stock.test_pred, preds)]
+            print("{0} days : {1:.5f}%".format(d, sum(res_preds_comp)/l))
+        print()
+
+        res_preds_comp = [k == w for k,w in zip(test_pred2, preds2)]
+        print("{0} days : {1:.5f}%".format(0, sum(res_preds_comp)/l))
+        for d in range(1,nxt_day_predict+3):
+            preds2.pop(0)
+            test_pred2.pop(-1)
+            l = len(test_pred2)
+            res_preds_comp = [k == w for k,w in zip(test_pred2, preds2)]
+            print("{0} days : {1:.5f}%".format(d, sum(res_preds_comp)/l))
+        print()
 
     # ax1 = plt.subplot2grid((2,1),(0,0), rowspan=1, colspan=1)
     # ax2 = plt.subplot2grid((2,1),(1,0), rowspan=1, colspan=1)
@@ -157,6 +160,6 @@ if __name__ == "__main__":
     ax1.scatter(range(len(stock.df.index)), stock.df['Close'], c = stock.df['labels_kmeans'])
     ax2.scatter(range(len(stock.df.index)), stock.df['Close'], c = stock.df['labels'])
     ax3.scatter(range(len(stock.df.index)), stock.df['Close'], c = stock.df['labels'])
-    if _gridSearch_:
+    if _gridSearch_ and _train_test_data_:
         ax3.scatter(range(len(stock.df.index), len(stock.df.index)+len(stock.test.index)), stock.test['Close'], c = labels_test)
     plt.show()
