@@ -74,6 +74,7 @@ class Stock:
 
     # * Add predict_next_k_day array to respective stockSVM
     def __add_PredictNxtDay_to_SVM__(self, k_days):
+        print("In fit ksvm extraTreesClf add predict SVM")
         if self.stockSVMs != []:
             for label in range(max(self.df['labels']) + 1):
                 predict_k_days_col = self.df['predict_' + str(k_days) + '_days']
@@ -86,15 +87,33 @@ class Stock:
                 self.available_labels.append(k)
 
     # * Split data in train and test data
-    def __train_test_split__(self):     
+    def __train_test_split__(self, df = None, extraTreesClf = False, predictNext_k_day = None, extraTreesFirst = 0.2):
         split = int(self.train_size * len(self.df))
+
         self.df, self.test = self.df[:split], self.df[split:]
 
-        allowed_list = self.__default_main_columns__ + self.indicators_list
-        if not self.__considerOHL__:
-            default = set(self.__OHL__)
-            allowed_list = [col for col in allowed_list if col not in default]
-        self.test = self.test[allowed_list]
+        if not extraTreesClf:
+            self.test = self.test[['Close'] + self.indicators_list]
+        else:
+            print("In train split")
+            if df is None:
+                print("df cannot be None if extraTreesClf is True!")
+                sys.exit()
+            if predictNext_k_day is None:
+                print("predictNext_k_day cannot be None if extraTreesClf is True!")
+                sys.exit()
+
+            i = self.__mapDayIdExtraTreesClf__[predictNext_k_day]
+            splitFirst = int(len(self.extraTreesFeatures[i])*extraTreesFirst)
+            features = [feature[0] for feature in self.extraTreesFeatures[i][:splitFirst]]
+            print(len(features))
+            self.test = self.df[['Close'] + features]
+            print(len(self.test.columns))
+
+        # allowed_list = self.indicators_list
+        # if not self.__considerOHL__:
+        #     default = set(self.__OHL__ + ['Close','Volume'])
+        #     allowed_list = [col for col in allowed_list if col not in default]
 
     # * Remove rows which has at least one NA/NaN/NULL value
     def removeNaN(self):
@@ -139,8 +158,8 @@ class Stock:
                     break
         
         if not found_target:
-            print("Predict {0} day param not applied yet!".format(predictNext_k_day))
-            sys.exit()
+            self.applyPredict(predictNext_k_day, addPredictDaySVM = False)
+            self.targets = self.df['predict_' + str(predictNext_k_day) + '_days'].values
         
         self.targets = self.targets[~np.isnan(self.targets)]
 
@@ -230,15 +249,34 @@ class Stock:
                            random_state_kmeans = None,
                            random_state_clf = None,
                            consistent_clusters_kmeans = False,
-                           consistent_clusters_multiclass = False):
-        self.df2 = self.df.copy()
-        for col in self.df2.columns:
-            if col in self.__OHL__:
-                self.df2 = self.df2.drop(col, axis = 1)
-            elif 'predict' in col:
-                self.df2 = self.df2.drop(col, axis = 1)
-            elif 'labels' in col:
-                self.df2 = self.df2.drop(col, axis = 1)
+                           consistent_clusters_multiclass = False,
+                           extraTreesClf = False,
+                           predictNext_k_day = None,
+                           extraTreesFirst = 0.2):
+        
+        if extraTreesClf:
+            if predictNext_k_day is None or predictNext_k_day <= 0:
+                print("predictNext_k_day must be greater than 0 when extraTreesClf is True!")
+                sys.exit()
+            elif predictNext_k_day not in self.__mapDayIdExtraTreesClf__.keys():
+                print("ExtraTrees model for predict {0} days not fitted yet!".format(predictNext_k_day))
+                sys.exit()
+            else:
+                i = self.__mapDayIdExtraTreesClf__[predictNext_k_day]
+                split = int(len(self.extraTreesFeatures[i])*0.2)
+                self.features2 = [feature[0] for feature in self.extraTreesFeatures[i][:split]]
+                self.df2 = self.df[['Close'] + self.features2]
+        else:
+            self.df2 = self.df[['Close'] + self.indicators_list]
+
+        # self.df2 = self.df.copy()
+        # for col in self.df2.columns:
+        #     if col in self.__OHL__ + ['Volume']:
+        #         self.df2 = self.df2.drop(col, axis = 1)
+        #     elif 'predict' in col:
+        #         self.df2 = self.df2.drop(col, axis = 1)
+        #     elif 'labels' in col:
+        #         self.df2 = self.df2.drop(col, axis = 1)
         
         labels = self.__fit_KMeans__(self.df2, num_clusters = num_clusters, random_state_kmeans = random_state_kmeans)
 
@@ -265,10 +303,20 @@ class Stock:
 
         self.__set_available_labels__()
 
+        if extraTreesClf:
+            print("In fit ksvm extraTreesClf")
+            self.__add_PredictNxtDay_to_SVM__(predictNext_k_day)
+            if self.__train_test_data__:
+                print("In fit ksvm extraTreesClf train split")
+                self.__train_test_split__(df = self.df2,
+                                          extraTreesClf = True,
+                                          predictNext_k_day = predictNext_k_day,
+                                          extraTreesFirst = extraTreesClf)
+
         # return labels
 
     # * Apply predict next n days
-    def applyPredict(self, k_days = 1):
+    def applyPredict(self, k_days = 1, addPredictDaySVM = True):
         if k_days < 1:
             print("k_days must be greater than 0!")
             sys.exit()
@@ -310,53 +358,27 @@ class Stock:
         else:
             self.df['predict_' + str(k_days) + '_days'] = predict_next
 
-        self.__add_PredictNxtDay_to_SVM__(k_days)
+        if addPredictDaySVM:
+            self.__add_PredictNxtDay_to_SVM__(k_days)
 
         # return predict_next
-    
-    # * Split and return an array
-    # TODO Remove Open, High, Low
-    def splitByLabel1(self):
-        if self.clf is None:
-            print('Data must be clusterized before split by label!')
-            sys.exit()
-
-        predict_to_drop = [col for col in self.df.columns if 'predict' in col]
-        if predict_to_drop is not None:
-            values = self.df.drop(predict_to_drop, axis = 1).values
-        else:
-            values = self.df.values
-        
-        a = [[] for k in range(max(self.df['labels'])+1)]
-        for row, label in zip(values, self.df['labels']):
-            a[label].append(row)
-        
-        self.stockSVMs = [StockSVM(new_stockSVM) for new_stockSVM in a]
-        # self.stockSVMs = [StockSVM(new_stockSVM) for new_stockSVM in filter(None, a)]
 
     # * Split and return a data frame
-    # TODO Remove Open, High, Low
-    def splitByLabel2(self):
+    def splitByLabel(self):
         if self.clf is None:
             print('Data must be clusterized before split by label!')
             sys.exit()
         
         self.stockSVMs = []
 
-        for label in range(max(self.df['labels'])+1):
+        for label in range(max(self.df['labels_kmeans'])+1):
             new_stockSVM = self.df[self.df['labels'] == label]
-            # if new_stockSVM.empty:
-            #     continue
 
-            new_stockSVM = new_stockSVM.drop('labels', axis = 1)
-
-            for k in self.__OHL__ + ['labels_kmeans', 'labels']:
-                if k in new_stockSVM.columns:
-                    new_stockSVM = new_stockSVM.drop(k, axis = 1)
-
-            for k in new_stockSVM.columns:
-                if 'predict' in k:
-                    new_stockSVM = new_stockSVM.drop(k, axis = 1)
+            for col in new_stockSVM.columns:
+                if 'predict' in col:
+                    new_stockSVM = new_stockSVM.drop(col, axis = 1)
+                elif col in self.__OHL__ + ['Volume', 'labels_kmeans', 'labels']:
+                    new_stockSVM = new_stockSVM.drop(col, axis = 1)
 
             new_stockSVM = StockSVM(new_stockSVM)
             self.stockSVMs.append(new_stockSVM)
@@ -380,10 +402,14 @@ class Stock:
         return self.clf.predict(df)
 
     def predict_SVM(self, cluster_id, df):
+
+        # Treat if the SVM cluster chosen have no data
+        # Predict using larget SVM
+        # TODO Create a better solution
         if len(self.stockSVMs[cluster_id].values) == 0:
             biggest = cluster_id
             for k, stockSVM in enumerate(self.stockSVMs):
-                lenSVM = len(stockSVM[k].values)
+                lenSVM = len(stockSVM.values)
                 if lenSVM > biggest:
                     biggest = lenSVM
                     cluster_id = k

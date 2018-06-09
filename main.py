@@ -54,7 +54,7 @@ ind_dict = {
 
 if extraRandomTree:
     ind_funcs_params = []
-    with open('db/FeaturesTestOut.txt', 'r') as f:
+    with open('db/FeaturesTestOut2.txt', 'r') as f:
         for line in f:
             line = line.split(',')
             if len(line) == 1:
@@ -72,75 +72,80 @@ if __name__ == "__main__":
 
     stock = Stock(ticker, considerOHL = False, train_test_data = _train_test_data_, train_size = 0.8)
 
-    # ! I have a problem
-    # ! I should create cluterizations for each predicted day (3,5,7,...)
-    # ! So that I would need a list of clfs into Stock class
-    # ! But I made the program to follow an order. What prevents a clf list creation
-    # ! I tryed to run this order: indicators, predict, split, K-SVMeans
-    # ! But stockSVMs are created based on labels from clusterization
+    # ! I have another problem
+    # ! When I apply extraTrees classifier, then splitbylabel or vice versa, stock.stockSVMs get no predict_next_k_days
 
     stock.applyIndicators(ind_funcs_params)
     print()
-    stock.fit_kSVMeans(num_clusters = 4,\
-                       random_state_kmeans = 40,\
-                       random_state_clf = None,\
-                       classifier = 'OneVsOne',\
-                       consistent_clusters_multiclass = True)
-    stock.splitByLabel2()
+    # stock.fit_kSVMeans(num_clusters = 4,\
+    #                    random_state_kmeans = 40,\
+    #                    random_state_clf = None,\
+    #                    classifier = 'OneVsOne',\
+    #                    consistent_clusters_multiclass = True)
+    stock.fit_kSVMeans(num_clusters = 4, 
+                       classifier = 'OneVsOne',
+                       random_state_kmeans = 40,
+                       random_state_clf = None,
+                       consistent_clusters_multiclass = True,
+                       extraTreesClf = False,
+                       predictNext_k_day = None)
+    if False:
+        stock.splitByLabel()
 
-    stock.applyPredict(nxt_day_predict)
+        stock.applyPredict(nxt_day_predict)
 
-    # stock.fit(predictNext_k_day = nxt_day_predict,
-    #           gridSearch = _gridSearch_, 
-    #           parameters = {'C' : np.linspace(2e-5,2e3,20), 'gamma' : np.linspace(2e-15,2e3,5)}, k_fold_num = 5)
-    stock.fit(predictNext_k_day = nxt_day_predict,
-              gridSearch = _gridSearch_, 
-              parameters = {'C' : np.linspace(2e-5,2e3,10), 'gamma' : [2e-15]}, n_jobs = 2, k_fold_num = 3)
-    print()
-
-    if _gridSearch_:
-        for stockSVM in stock.stockSVMs:
-            if stockSVM.clf is not None:
-                print("Best estimators: C = {0} gamma = {1}"\
-                    .format(stockSVM.clf.best_estimator_.C,stockSVM.clf.best_estimator_.gamma))
+        # stock.fit(predictNext_k_day = nxt_day_predict,
+        #           gridSearch = _gridSearch_, 
+        #           parameters = {'C' : np.linspace(2e-5,2e3,20), 'gamma' : np.linspace(2e-15,2e3,5)}, k_fold_num = 5)
+        stock.fit(predictNext_k_day = nxt_day_predict,
+                gridSearch = _gridSearch_, 
+                parameters = {'C' : np.linspace(2e-5,2e3,10), 'gamma' : [2e-15]}, n_jobs = 2, k_fold_num = 3)
         print()
 
-    if _train_test_data_:
-        labels_test = stock.predict_SVM_Cluster(stock.test)
+        if _gridSearch_:
+            for stockSVM in stock.stockSVMs:
+                if stockSVM.clf is not None:
+                    print("Best estimators: C = {0} gamma = {1}"\
+                        .format(stockSVM.clf.best_estimator_.C,stockSVM.clf.best_estimator_.gamma))
+            print()
 
-        preds = []
-        for k, lab in enumerate(labels_test):
-            preds.append(int(stock.predict_SVM(lab, stock.test[k:k+1])))
-            # print(lab, stock.predict_SVM(lab, stock.test[k:k+1]))
+        if _train_test_data_:
+            labels_test = stock.predict_SVM_Cluster(stock.test)
 
-        res_preds_comp = [k == w for k,w in zip(stock.test_pred, preds)]
+            preds = []
+            for k, lab in enumerate(labels_test):
+                preds.append(int(stock.predict_SVM(lab, stock.test[k:k+1])))
+                # print(lab, stock.predict_SVM(lab, stock.test[k:k+1]))
 
-        preds2 = preds.copy()
-        test_pred2 = stock.test_pred.copy()
-        l = len(preds)
-
-        print("{0} days : {1:.5f}%".format(0, sum(res_preds_comp)/l))
-        for d in range(1,nxt_day_predict+3):
-            preds.append(preds.pop(0))
             res_preds_comp = [k == w for k,w in zip(stock.test_pred, preds)]
-            print("{0} days : {1:.5f}%".format(d, sum(res_preds_comp)/l))
-        print()
 
-        res_preds_comp = [k == w for k,w in zip(test_pred2, preds2)]
-        print("{0} days : {1:.5f}%".format(0, sum(res_preds_comp)/l))
-        for d in range(1,nxt_day_predict+3):
-            preds2.pop(0)
-            test_pred2.pop(-1)
-            l = len(test_pred2)
+            preds2 = preds.copy()
+            test_pred2 = stock.test_pred.copy()
+            l = len(preds)
+
+            print("{0} days : {1:.5f}%".format(0, sum(res_preds_comp)/l))
+            for d in range(1,nxt_day_predict+3):
+                preds.append(preds.pop(0))
+                res_preds_comp = [k == w for k,w in zip(stock.test_pred, preds)]
+                print("{0} days : {1:.5f}%".format(d, sum(res_preds_comp)/l))
+            print()
+
             res_preds_comp = [k == w for k,w in zip(test_pred2, preds2)]
-            print("{0} days : {1:.5f}%".format(d, sum(res_preds_comp)/l))
-        print()
+            print("{0} days : {1:.5f}%".format(0, sum(res_preds_comp)/l))
+            for d in range(1,nxt_day_predict+3):
+                preds2.pop(0)
+                test_pred2.pop(-1)
+                l = len(test_pred2)
+                res_preds_comp = [k == w for k,w in zip(test_pred2, preds2)]
+                print("{0} days : {1:.5f}%".format(d, sum(res_preds_comp)/l))
+            print()
 
     # ax1 = plt.subplot2grid((2,1),(0,0), rowspan=1, colspan=1)
     # ax2 = plt.subplot2grid((2,1),(1,0), rowspan=1, colspan=1)
-    ax1 = plt.subplot2grid((3,1),(0,0), rowspan=1, colspan=1)
-    ax2 = plt.subplot2grid((3,1),(1,0), rowspan=1, colspan=1, sharex = ax1)
-    ax3 = plt.subplot2grid((3,1),(2,0), rowspan=1, colspan=1, sharex = ax1)
+    if False:
+        ax1 = plt.subplot2grid((3,1),(0,0), rowspan=1, colspan=1)
+        ax2 = plt.subplot2grid((3,1),(1,0), rowspan=1, colspan=1, sharex = ax1)
+        ax3 = plt.subplot2grid((3,1),(2,0), rowspan=1, colspan=1, sharex = ax1)
 
     # ax1.scatter(range(len(stock.df.index)), stock.df['Close'], c=labels1)
     # ax2.scatter(range(len(stock.df.index)), stock.df['Close'], c=labels)
@@ -157,9 +162,10 @@ if __name__ == "__main__":
     # ax2.bar(df.index, df['predict_3_days'].values)
     # ax3.bar(df.index, df['predict_10_days'].values)
 
-    ax1.scatter(range(len(stock.df.index)), stock.df['Close'], c = stock.df['labels_kmeans'])
-    ax2.scatter(range(len(stock.df.index)), stock.df['Close'], c = stock.df['labels'])
-    ax3.scatter(range(len(stock.df.index)), stock.df['Close'], c = stock.df['labels'])
-    if _gridSearch_ and _train_test_data_:
-        ax3.scatter(range(len(stock.df.index), len(stock.df.index)+len(stock.test.index)), stock.test['Close'], c = labels_test)
-    plt.show()
+    if False:
+        ax1.scatter(range(len(stock.df.index)), stock.df['Close'], c = stock.df['labels_kmeans'])
+        ax2.scatter(range(len(stock.df.index)), stock.df['Close'], c = stock.df['labels'])
+        ax3.scatter(range(len(stock.df.index)), stock.df['Close'], c = stock.df['labels'])
+        if _gridSearch_ and _train_test_data_:
+            ax3.scatter(range(len(stock.df.index), len(stock.df.index)+len(stock.test.index)), stock.test['Close'], c = labels_test)
+        plt.show()

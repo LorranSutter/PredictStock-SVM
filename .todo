@@ -1,5 +1,6 @@
 TODO:
     ❑ Check bollinger bands function consistency @file:///home/lorran/Documents/TCC/Codes/Indicators.py#32
+    ❑ Create a better solution for empty stockSVM
 
 Archive:
     ✔ Check span and min_periods default (Chaikin) @file:///home/lorran/Documents/TCC/Codes/Indicators.py#209 @done(18-05-19 00:53)
