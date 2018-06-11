@@ -201,7 +201,7 @@ if __name__ == "__main__":
             gridSearch = _gridSearch_, 
             parameters = {'C' : np.linspace(2e-5,2e3,10), 'gamma' : [2e-15]}, n_jobs = 2, k_fold_num = 3)
     
-    if False:
+    if True:
         if _gridSearch_:
             print('grid Estimators 1\n')
             gridSearchEstimators(stock)
@@ -222,3 +222,4 @@ if __name__ == "__main__":
         
         if True:
             plotStockBoth(stock, stock2, _gridSearch_, _train_test_data_, labels_test1, labels_test2)
+            # plotStock(stock2, _gridSearch_, _train_test_data_, labels_test2)

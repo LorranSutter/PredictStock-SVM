@@ -12,6 +12,8 @@ from sklearn.multiclass import OneVsOneClassifier, OneVsRestClassifier
 
 from StockSVM import StockSVM
 
+# pd.set_option('mode.chained_assignment','raise')
+
 class Stock:
 
     def __init__(self, ticker, considerOHL = False, remVolZero = True, train_test_data = False, train_size = 0.8):
@@ -32,14 +34,16 @@ class Stock:
             self.__OHL__ = ['Open','High','Low']
 
         self.__readTicker__(ticker)
+        self.wholeDF.set_index('Date', inplace = True)
         self.df.set_index('Date', inplace = True)
 
         self.__delExtraColumns__()
 
-        if 'Volume' in self.df.columns and remVolZero:
+        if 'Volume' in self.wholeDF.columns and remVolZero:
+            self.wholeDF = self.wholeDF[self.wholeDF['Volume'] != 0]
             self.df = self.df[self.df['Volume'] != 0]
 
-        self.__default_main_columns__ = self.df.columns.tolist()
+        self.__default_main_columns__ = self.wholeDF.columns.tolist()
 
         if self.__train_test_data__:
             if train_size <= 0 or train_size >= 1:
@@ -58,9 +62,11 @@ class Stock:
     # * Read data stock from file
     def __readTicker__(self, ticker):
         if 'TSLA' in ticker:
+            self.wholeDF = pd.read_csv('db' + '/{0}.csv'.format(ticker), parse_dates = True)
             self.df = pd.read_csv('db' + '/{0}.csv'.format(ticker), parse_dates = True)
         else:
             try:
+                self.wholeDF = pd.read_csv(self.__db_dir__ + '/{0}/{1}.csv'.format(ticker[0].upper(), ticker), parse_dates = True)
                 self.df = pd.read_csv(self.__db_dir__ + '/{0}/{1}.csv'.format(ticker[0].upper(), ticker), parse_dates = True)
             except FileNotFoundError as e:
                 print(e)
@@ -68,6 +74,9 @@ class Stock:
 
     # * Delete extra columns
     def __delExtraColumns__(self):
+        for col in [col for col in self.wholeDF.columns if col not in self.__default_columns__]:
+            self.wholeDF.pop(col)
+            print(col + " extra column removed!")
         for col in [col for col in self.df.columns if col not in self.__default_columns__]:
             self.df.pop(col)
             print(col + " extra column removed!")
@@ -87,12 +96,21 @@ class Stock:
 
     # * Split data in train and test data
     def __train_test_split__(self, df = None, extraTreesClf = False, predictNext_k_day = None, extraTreesFirst = 0.2):
-        split = int(self.train_size * len(self.df))
+        split = int(self.train_size * len(self.wholeDF))
+
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        # TODO Find a way to keep predict_k_day colum in df when extraTreesClf is used
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         print("train test split len df", len(self.df))
-        self.df, self.test = self.df[:split], self.df[split:]
+        print(self.df.columns)
+        self.df, self.test = self.wholeDF.iloc[:split].copy(), self.wholeDF.iloc[split:].copy()
+        print(self.df.columns)
+        # self.df, self.test = self.df[:split], self.df[split:]
         print("train test split len df", len(self.df))
-        
+
         if not extraTreesClf:
             self.test = self.test[['Close'] + self.indicators_list]
         else:
@@ -106,7 +124,7 @@ class Stock:
             i = self.__mapDayIdExtraTreesClf__[predictNext_k_day]
             splitFirst = int(len(self.extraTreesFeatures[i])*extraTreesFirst)
             features = [feature[0] for feature in self.extraTreesFeatures[i][:splitFirst]]
-            self.test = self.test[['Close'] + features]            
+            self.test = self.test[['Close'] + features]
 
         # allowed_list = self.indicators_list
         # if not self.__considerOHL__:
@@ -115,6 +133,7 @@ class Stock:
 
     # * Remove rows which has at least one NA/NaN/NULL value
     def removeNaN(self):
+        self.wholeDF.dropna(inplace = True)
         self.df.dropna(inplace = True)
 
     # * Extremely Randomized Tree Classifier algorithm
@@ -139,13 +158,13 @@ class Stock:
                                         random_state = None):
         self.targets = None
         found_target = False
-        for col in self.df.columns:
+        for col in self.wholeDF.columns:
             if 'predict' in col:
                 col_split = col.split('_') # Split predict_k_days column
 
                 # Check if predictNext_k_day day is already applied
                 if int(col_split[1]) == predictNext_k_day:
-                    self.targets = self.df[col].values
+                    self.targets = self.wholeDF[col].values
                     found_target = True
                     break
         
@@ -178,22 +197,22 @@ class Stock:
     def applyIndicators(self, ind_funcs_params, replaceInf = True, remNaN = True, verbose = True):
         for func_param in ind_funcs_params:
             if func_param[1] != None:
-                func_param[0](self.df, *func_param[1])
+                func_param[0](self.wholeDF, *func_param[1])
             else:
-                func_param[0](self.df)
+                func_param[0](self.wholeDF)
             if verbose:
                 print(func_param[0].__name__ + " indicator calculated!")
         
         default = set(self.__default_main_columns__)
-        self.indicators_list = [col for col in self.df.columns if col not in default and 'predict' not in col]
+        self.indicators_list = [col for col in self.wholeDF.columns if col not in default and 'predict' not in col]
 
         # Replace infinity values by NaN
         if replaceInf:
-            self.df.replace([np.inf, -np.inf], np.nan, inplace = True)
+            self.wholeDF.replace([np.inf, -np.inf], np.nan, inplace = True)
         
         # Remove rows which has at least one NA/NaN/NULL value 
         if remNaN:
-            self.df.dropna(inplace = True)
+            self.wholeDF.dropna(inplace = True)
         
         if self.__train_test_data__:
             self.__train_test_split__()
@@ -258,22 +277,16 @@ class Stock:
                 i = self.__mapDayIdExtraTreesClf__[predictNext_k_day]
                 split = int(len(self.extraTreesFeatures[i])*extraTreesFirst)
                 self.features2 = [feature[0] for feature in self.extraTreesFeatures[i][:split]]
-                self.df2 = self.df[['Close'] + self.features2]
+                self.df2 = self.df.loc[:,['Close'] + self.features2]
         else:
-            self.df2 = self.df[['Close'] + self.indicators_list]
-
-        # self.df2 = self.df.copy()
-        # for col in self.df2.columns:
-        #     if col in self.__OHL__ + ['Volume']:
-        #         self.df2 = self.df2.drop(col, axis = 1)
-        #     elif 'predict' in col:
-        #         self.df2 = self.df2.drop(col, axis = 1)
-        #     elif 'labels' in col:
-        #         self.df2 = self.df2.drop(col, axis = 1)
+            self.df2 = self.df.loc[:,['Close'] + self.indicators_list]
         
         labels = self.__fit_KMeans__(self.df2, num_clusters = num_clusters, random_state_kmeans = random_state_kmeans)
 
-        self.df['labels_kmeans'] = labels
+        print(self.df.columns)
+        self.df.loc[:,'labels_kmeans'] = labels
+        print(self.df.columns)
+        # self.df['labels_kmeans'] = labels
         
         if consistent_clusters_kmeans:
             print('KMeans')
@@ -291,9 +304,13 @@ class Stock:
 
         print("Len df", len(self.df))
         if classifier is not None:
-            self.df['labels'] = labels_clf
+            print(self.df.columns)
+            self.df.loc[:,'labels'] = labels_clf
+            print(self.df.columns)
+            # self.df['labels'] = labels_clf
         else:
-            self.df['labels'] = labels
+            self.df.loc[:,'labels'] = labels
+            # self.df['labels'] = labels
         print("Len df", len(self.df))
 
         self.__set_available_labels__()
@@ -350,10 +367,14 @@ class Stock:
                     predict_next[k] = 0
         
         if self.__train_test_data__:
-            self.df['predict_' + str(k_days) + '_days'] = predict_next[:len(self.df.index)]
-            self.test_pred = predict_next[len(self.df.index):]            
+            print(self.df.columns)
+            self.df.loc[:,'predict_' + str(k_days) + '_days'] = predict_next[:len(self.df.index)]
+            print(self.df.columns)
+            # self.df['predict_' + str(k_days) + '_days'] = predict_next[:len(self.df.index)]
+            self.test_pred = predict_next[len(self.df.index):]
         else:
-            self.df['predict_' + str(k_days) + '_days'] = predict_next
+            self.df.loc[:,'predict_' + str(k_days) + '_days'] = predict_next
+            # self.df['predict_' + str(k_days) + '_days'] = predict_next
 
         if addPredictDaySVM:
             self.__add_PredictNxtDay_to_SVM__(k_days)
