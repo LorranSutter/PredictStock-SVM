@@ -74,7 +74,6 @@ class Stock:
 
     # * Add predict_next_k_day array to respective stockSVM
     def __add_PredictNxtDay_to_SVM__(self, k_days):
-        print("In fit ksvm extraTreesClf add predict SVM")
         if self.stockSVMs != []:
             for label in range(max(self.df['labels']) + 1):
                 predict_k_days_col = self.df['predict_' + str(k_days) + '_days']
@@ -90,12 +89,13 @@ class Stock:
     def __train_test_split__(self, df = None, extraTreesClf = False, predictNext_k_day = None, extraTreesFirst = 0.2):
         split = int(self.train_size * len(self.df))
 
+        print("train test split len df", len(self.df))
         self.df, self.test = self.df[:split], self.df[split:]
-
+        print("train test split len df", len(self.df))
+        
         if not extraTreesClf:
             self.test = self.test[['Close'] + self.indicators_list]
         else:
-            print("In train split")
             if df is None:
                 print("df cannot be None if extraTreesClf is True!")
                 sys.exit()
@@ -106,9 +106,7 @@ class Stock:
             i = self.__mapDayIdExtraTreesClf__[predictNext_k_day]
             splitFirst = int(len(self.extraTreesFeatures[i])*extraTreesFirst)
             features = [feature[0] for feature in self.extraTreesFeatures[i][:splitFirst]]
-            print(len(features))
-            self.test = self.df[['Close'] + features]
-            print(len(self.test.columns))
+            self.test = self.test[['Close'] + features]            
 
         # allowed_list = self.indicators_list
         # if not self.__considerOHL__:
@@ -138,13 +136,7 @@ class Stock:
     # * Apply Extra Trees clf to the features
     def applyExtraTreesClassifier(self, predictNext_k_day,
                                         n_estimators = 10,
-                                        random_state = None,
-                                        extraTreesFirst = 0.2):
-        if extraTreesFirst < 0 or extraTreesFirst > 1:
-            print('extraTressFirsts param must be in (0,1) interval!')
-            sys.exit()
-        self.extraTreesFirst = extraTreesFirst
-
+                                        random_state = None):
         self.targets = None
         found_target = False
         for col in self.df.columns:
@@ -183,13 +175,14 @@ class Stock:
             self.extraTreesFeatures[i] = self.features[:split_size]
 
     # * Apply indicators
-    def applyIndicators(self, ind_funcs_params, replaceInf = True, remNaN = True):
+    def applyIndicators(self, ind_funcs_params, replaceInf = True, remNaN = True, verbose = True):
         for func_param in ind_funcs_params:
             if func_param[1] != None:
                 func_param[0](self.df, *func_param[1])
             else:
                 func_param[0](self.df)
-            print(func_param[0].__name__ + " indicator calculated!")
+            if verbose:
+                print(func_param[0].__name__ + " indicator calculated!")
         
         default = set(self.__default_main_columns__)
         self.indicators_list = [col for col in self.df.columns if col not in default and 'predict' not in col]
@@ -212,7 +205,7 @@ class Stock:
             print(freq)
             if freq <= num_clusters:
                 return False
-        if min(freqs) / max(freqs) < 0.02:
+        if min(freqs) / max(freqs) < 0.1:
             return False
         return True
 
@@ -263,7 +256,7 @@ class Stock:
                 sys.exit()
             else:
                 i = self.__mapDayIdExtraTreesClf__[predictNext_k_day]
-                split = int(len(self.extraTreesFeatures[i])*0.2)
+                split = int(len(self.extraTreesFeatures[i])*extraTreesFirst)
                 self.features2 = [feature[0] for feature in self.extraTreesFeatures[i][:split]]
                 self.df2 = self.df[['Close'] + self.features2]
         else:
@@ -296,22 +289,26 @@ class Stock:
                     labels_clf = self.__fit_Multiclass_Classifier__(self.df2, classifier = classifier, random_state_clf = None, labels = labels)
                     print()
 
+        print("Len df", len(self.df))
         if classifier is not None:
             self.df['labels'] = labels_clf
         else:
             self.df['labels'] = labels
+        print("Len df", len(self.df))
 
         self.__set_available_labels__()
 
         if extraTreesClf:
-            print("In fit ksvm extraTreesClf")
+            self.splitByLabel(extraTreesClf = True,
+                              predictNext_k_day = predictNext_k_day,
+                              extraTreesFirst = extraTreesFirst)
             self.__add_PredictNxtDay_to_SVM__(predictNext_k_day)
+
             if self.__train_test_data__:
-                print("In fit ksvm extraTreesClf train split")
                 self.__train_test_split__(df = self.df2,
                                           extraTreesClf = True,
                                           predictNext_k_day = predictNext_k_day,
-                                          extraTreesFirst = extraTreesClf)
+                                          extraTreesFirst = extraTreesFirst)
 
         # return labels
 
@@ -364,15 +361,27 @@ class Stock:
         # return predict_next
 
     # * Split and return a data frame
-    def splitByLabel(self):
+    def splitByLabel(self, extraTreesClf = False, predictNext_k_day = None, extraTreesFirst = 0.2):
         if self.clf is None:
             print('Data must be clusterized before split by label!')
-            sys.exit()
+            sys.exit()        
         
+        if extraTreesClf:
+            if predictNext_k_day is None:
+                print("predictNext_k_day cannot be None if extraTreesClf is True!")
+                sys.exit()
+            
+            i = self.__mapDayIdExtraTreesClf__[predictNext_k_day]
+            splitFirst = int(len(self.extraTreesFeatures[i])*extraTreesFirst)
+            features = [feature[0] for feature in self.extraTreesFeatures[i][:splitFirst]]
+            df = self.df[['Close'] + features]
+        else:
+            df = self.df
+
         self.stockSVMs = []
 
         for label in range(max(self.df['labels_kmeans'])+1):
-            new_stockSVM = self.df[self.df['labels'] == label]
+            new_stockSVM = df[self.df['labels'] == label]
 
             for col in new_stockSVM.columns:
                 if 'predict' in col:

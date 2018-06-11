@@ -8,8 +8,6 @@ from sklearn.cluster import KMeans
 from sklearn.model_selection import GridSearchCV
 from sklearn.multiclass import OneVsOneClassifier, OneVsRestClassifier
 
-# from mpl_toolkits.mplot3d import Axes3D
-
 import Indicators as ind
 from KSVMeans import KSVMeans
 
@@ -128,49 +126,99 @@ def plotStock(stock, _gridSearch_, _train_test_data_, labels_test = None):
         ax3.scatter(range(len(stock.df.index), len(stock.df.index)+len(stock.test.index)), stock.test['Close'], c = labels_test)
     plt.show()
 
+def plotStockBoth(stock, stock2, _gridSearch_, _train_test_data_, labels_test1 = None, labels_test2 = None):
+    ax11 = plt.subplot2grid((3,2),(0,0), rowspan=1, colspan=1)
+    ax21 = plt.subplot2grid((3,2),(1,0), rowspan=1, colspan=1, sharex = ax11)
+    ax31 = plt.subplot2grid((3,2),(2,0), rowspan=1, colspan=1, sharex = ax11)
+
+    ax12 = plt.subplot2grid((3,2),(0,1), rowspan=1, colspan=1)
+    ax22 = plt.subplot2grid((3,2),(1,1), rowspan=1, colspan=1, sharex = ax12)
+    ax32 = plt.subplot2grid((3,2),(2,1), rowspan=1, colspan=1, sharex = ax12)
+
+    ax11.scatter(range(len(stock.df.index)), stock.df['Close'], c = stock.df['labels_kmeans'])
+    ax21.scatter(range(len(stock.df.index)), stock.df['Close'], c = stock.df['labels'])
+    ax31.scatter(range(len(stock.df.index)), stock.df['Close'], c = stock.df['labels'])
+    if _gridSearch_ and _train_test_data_:
+        ax31.scatter(range(len(stock.df.index), len(stock.df.index)+len(stock.test.index)), stock.test['Close'], c = labels_test1)
+    
+    ax12.scatter(range(len(stock2.df.index)), stock2.df['Close'], c = stock2.df['labels_kmeans'])
+    ax22.scatter(range(len(stock2.df.index)), stock2.df['Close'], c = stock2.df['labels'])
+    ax32.scatter(range(len(stock2.df.index)), stock2.df['Close'], c = stock2.df['labels'])
+    if _gridSearch_ and _train_test_data_:
+        ax32.scatter(range(len(stock2.df.index), len(stock2.df.index)+len(stock2.test.index)), stock2.test['Close'], c = labels_test2)
+
+    plt.show()
+
+
 _gridSearch_ = True
 _train_test_data_ = True
 
 if __name__ == "__main__":
-    ticker = 'TSLA2'
+    ticker = 'TSLA'
+
+    print("WITH Extra Trees Classifier\n")
 
     stock = Stock(ticker, considerOHL = False, train_test_data = _train_test_data_, train_size = 0.8)
 
-    stock.applyIndicators(ind_funcs_params)
+    print("Calculating indicators...")
+    stock.applyIndicators(ind_funcs_params, verbose = False)
+    print("Indicators calculated!\n")
+
+    stock.applyExtraTreesClassifier(nxt_day_predict)
+    stock.fit_kSVMeans(num_clusters = 4, 
+                       classifier = 'OneVsOne',
+                       random_state_kmeans = 40,
+                       random_state_clf = 1,
+                       consistent_clusters_multiclass = True,
+                       extraTreesClf = True,
+                       predictNext_k_day = nxt_day_predict,
+                       extraTreesFirst = 1)
+
     print()
-    stock.fit_kSVMeans(num_clusters = 4,\
+    stock.fit(predictNext_k_day = nxt_day_predict,
+            gridSearch = _gridSearch_, 
+            parameters = {'C' : np.linspace(2e-5,2e3,10), 'gamma' : [2e-15]}, n_jobs = 2, k_fold_num = 3)
+    print()
+
+    print("WITHOUT Extra Trees Classifier\n")
+
+    stock2 = Stock(ticker, considerOHL = False, train_test_data = _train_test_data_, train_size = 0.8)
+
+    print("Calculating indicators...")
+    stock2.applyIndicators(ind_funcs_params, verbose = False)
+    print("Indicators calculated!\n")
+
+    stock2.fit_kSVMeans(num_clusters = 4,\
                        random_state_kmeans = 40,\
-                       random_state_clf = 40,\
+                       random_state_clf = 1,\
                        classifier = 'OneVsOne',\
-                       consistent_clusters_multiclass = True)
-    # stock.fit_kSVMeans(num_clusters = 4, 
-    #                    classifier = 'OneVsOne',
-    #                    random_state_kmeans = 40,
-    #                    random_state_clf = None,
-    #                    consistent_clusters_multiclass = True,
-    #                    extraTreesClf = False,
-    #                    predictNext_k_day = None)
-    if True:
-        stock.splitByLabel()
+                       consistent_clusters_multiclass = True)    
+    stock2.splitByLabel()
 
-        stock.applyPredict(nxt_day_predict)
+    stock2.applyPredict(nxt_day_predict)
 
-        # stock.fit(predictNext_k_day = nxt_day_predict,
-        #           gridSearch = _gridSearch_, 
-        #           parameters = {'C' : np.linspace(2e-5,2e3,20), 'gamma' : np.linspace(2e-15,2e3,5)}, k_fold_num = 5)
-        stock.fit(predictNext_k_day = nxt_day_predict,
-                gridSearch = _gridSearch_, 
-                parameters = {'C' : np.linspace(2e-5,2e3,10), 'gamma' : [2e-15]}, n_jobs = 2, k_fold_num = 3)
-        print()
-
+    stock2.fit(predictNext_k_day = nxt_day_predict,
+            gridSearch = _gridSearch_, 
+            parameters = {'C' : np.linspace(2e-5,2e3,10), 'gamma' : [2e-15]}, n_jobs = 2, k_fold_num = 3)
+    
+    if False:
         if _gridSearch_:
+            print('grid Estimators 1\n')
             gridSearchEstimators(stock)
             print()
+            print('grid Estimators 2\n')
+            gridSearchEstimators(stock2)
+            print()
 
-        labels_test = None
+        labels_test1 = None
+        labels_test2 = None
         if _train_test_data_:
-            labels_test = stock.predict_SVM_Cluster(stock.test)
-            trainScore(stock, labels_test)
+            print('Score test 1\n')
+            labels_test1 = stock.predict_SVM_Cluster(stock.test)
+            trainScore(stock, labels_test1)
+            print('Score test 2\n')
+            labels_test2 = stock2.predict_SVM_Cluster(stock2.test)
+            trainScore(stock2, labels_test2)
         
         if True:
-            plotStock(stock, _gridSearch_, _train_test_data_, labels_test)
+            plotStockBoth(stock, stock2, _gridSearch_, _train_test_data_, labels_test1, labels_test2)
