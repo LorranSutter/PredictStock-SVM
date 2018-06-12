@@ -98,21 +98,6 @@ class Stock:
     def __train_test_split__(self, df = None, extraTreesClf = False, predictNext_k_day = None, extraTreesFirst = 0.2):
         split = int(self.train_size * len(self.wholeDF))
 
-        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        # TODO Find a way to keep predict_k_day colum in df when extraTreesClf is used
-        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-        # * wholeDF
-        # *          ALL OHLC and Volume
-        # * df
-        # *          labels_kmeans, labels, predict_k_days
-        # * test_pred
-        # *          predict_k_days for test
-
-        # self.df, self.test = self.df[:split], self.df[split:]
-
         if not extraTreesClf:
             self.df, self.test = self.wholeDF.iloc[:split].copy(), self.wholeDF.iloc[split:].copy()
             self.test = self.test[['Close'] + self.indicators_list]
