@@ -102,7 +102,7 @@ split_size = int(len(func_imp_sort)*0.2)
 first_func_imp_sort = func_imp_sort[:split_size]
 
 if write:
-    with open('db/FeaturesTestOut.txt','w') as f:
+    with open('db/FeaturesTestOut2.txt','w') as f:
         for func_imp in first_func_imp_sort:
             func_imp = func_imp[0].split('_')
             func_name = ''

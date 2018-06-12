@@ -52,7 +52,7 @@ ind_dict = {
 
 if extraRandomTree:
     ind_funcs_params = []
-    with open('db/FeaturesTestOut2.txt', 'r') as f:
+    with open('db/FeaturesTest.txt', 'r') as f:
         for line in f:
             line = line.split(',')
             if len(line) == 1:
@@ -154,7 +154,7 @@ _gridSearch_ = True
 _train_test_data_ = True
 
 if __name__ == "__main__":
-    ticker = 'TSLA'
+    ticker = 'TSLA2'
 
     print("WITH Extra Trees Classifier\n")
 
@@ -172,7 +172,7 @@ if __name__ == "__main__":
                        consistent_clusters_multiclass = True,
                        extraTreesClf = True,
                        predictNext_k_day = nxt_day_predict,
-                       extraTreesFirst = 1)
+                       extraTreesFirst = 0.18)
 
     print()
     stock.fit(predictNext_k_day = nxt_day_predict,

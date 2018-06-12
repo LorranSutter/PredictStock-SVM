@@ -140,7 +140,7 @@ if __name__ == "__main__":
     print()
     stock.fit_kSVMeans(num_clusters = 4,\
                        random_state_kmeans = 40,\
-                       random_state_clf = 40,\
+                       random_state_clf = 1,\
                        classifier = 'OneVsOne',\
                        consistent_clusters_multiclass = True)
     # stock.fit_kSVMeans(num_clusters = 4, 

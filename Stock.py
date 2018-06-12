@@ -104,14 +104,17 @@ class Stock:
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-        print("train test split len df", len(self.df))
-        print(self.df.columns)
-        self.df, self.test = self.wholeDF.iloc[:split].copy(), self.wholeDF.iloc[split:].copy()
-        print(self.df.columns)
+        # * wholeDF
+        # *          ALL OHLC and Volume
+        # * df
+        # *          labels_kmeans, labels, predict_k_days
+        # * test_pred
+        # *          predict_k_days for test
+
         # self.df, self.test = self.df[:split], self.df[split:]
-        print("train test split len df", len(self.df))
 
         if not extraTreesClf:
+            self.df, self.test = self.wholeDF.iloc[:split].copy(), self.wholeDF.iloc[split:].copy()
             self.test = self.test[['Close'] + self.indicators_list]
         else:
             if df is None:
@@ -124,6 +127,11 @@ class Stock:
             i = self.__mapDayIdExtraTreesClf__[predictNext_k_day]
             splitFirst = int(len(self.extraTreesFeatures[i])*extraTreesFirst)
             features = [feature[0] for feature in self.extraTreesFeatures[i][:splitFirst]]
+
+            colsDf = [col for col in self.df.columns if 'perdict' in col or 'labels' in col]
+            colsWholeDF = features + ['Open','High','Low','Close','Volume']
+
+            self.df = pd.merge(self.wholeDF[colsWholeDF], self.df[colsDf], right_index = True, left_index = True)
             self.test = self.test[['Close'] + features]
 
         # allowed_list = self.indicators_list
@@ -283,9 +291,7 @@ class Stock:
         
         labels = self.__fit_KMeans__(self.df2, num_clusters = num_clusters, random_state_kmeans = random_state_kmeans)
 
-        print(self.df.columns)
         self.df.loc[:,'labels_kmeans'] = labels
-        print(self.df.columns)
         # self.df['labels_kmeans'] = labels
         
         if consistent_clusters_kmeans:
@@ -302,16 +308,12 @@ class Stock:
                     labels_clf = self.__fit_Multiclass_Classifier__(self.df2, classifier = classifier, random_state_clf = None, labels = labels)
                     print()
 
-        print("Len df", len(self.df))
         if classifier is not None:
-            print(self.df.columns)
             self.df.loc[:,'labels'] = labels_clf
-            print(self.df.columns)
             # self.df['labels'] = labels_clf
         else:
             self.df.loc[:,'labels'] = labels
             # self.df['labels'] = labels
-        print("Len df", len(self.df))
 
         self.__set_available_labels__()
 
@@ -367,9 +369,7 @@ class Stock:
                     predict_next[k] = 0
         
         if self.__train_test_data__:
-            print(self.df.columns)
             self.df.loc[:,'predict_' + str(k_days) + '_days'] = predict_next[:len(self.df.index)]
-            print(self.df.columns)
             # self.df['predict_' + str(k_days) + '_days'] = predict_next[:len(self.df.index)]
             self.test_pred = predict_next[len(self.df.index):]
         else:
