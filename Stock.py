@@ -431,7 +431,7 @@ class Stock:
             for svm in self.stockSVMs:
                 if not svm.values.empty:
                     if gridSearch:
-                        svm.fitGridSearch(predictNext_k_day = predictNext_k_day,
+                        svm.fit_GridSearch(predictNext_k_day = predictNext_k_day,
                                           parameters = parameters,
                                           n_jobs = n_jobs,
                                           k_fold_num = k_fold_num,

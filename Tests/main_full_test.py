@@ -108,8 +108,6 @@ gamma_range = [2e-15*100**k for k in range(10)]
 if __name__ == "__main__":
     ticker = 'TSLA2'
 
-    t = time.time()
-
     stock = Stock(ticker, considerOHL = False, train_test_data = _train_test_data_, train_size = 0.8)
 
     print("Calculating indicators...")
@@ -129,20 +127,26 @@ if __name__ == "__main__":
                        verbose = True)
 
     print()
-    stock.fit(predictNext_k_day = nxt_day_predict,
-              gridSearch = _gridSearch_, 
-              parameters = {'C' : np.linspace(2e-5,2e3,30), 'gamma' : [2e-15]}, n_jobs = 2, k_fold_num = 5)
+    # stock.fit(predictNext_k_day = nxt_day_predict,
+    #           gridSearch = _gridSearch_, 
+    #           parameters = {'C' : np.linspace(2e-5,2e3,30), 'gamma' : [2e-15]}, n_jobs = 2, k_fold_num = 5)
 
-    print(time.time() - t)
-    # res_preds_comp = []
-    # k = 0
-    # for c in np.linspace(2e-5,2e3,30):
-    #     for g in np.linspace(2e-15,2e3,30):
-    #         stock.fit(predictNext_k_day = nxt_day_predict, C = c, gamma = g)
-    #         labels_test = stock.predict_SVM_Cluster(stock.test)
-    #         res_preds_comp.append(trainScore(stock, labels_test))
-    #         print("Iteration " + str(k), end = "\r")
-    #         k += 1
+    res_preds_comp = []
+    k = 0
+    param_times = []
+    t_tot = time.time()
+    for c in C_range:
+        for g in gamma_range:
+            t = time.time()
+            stock.fit(predictNext_k_day = nxt_day_predict, C = c, gamma = g)
+            t = time.time() - t
+            print("C " + str(c) + " gamma " + str(g))
+            print("Iteration " + str(k) + " time elapsed: " + str(t))
+            param_times.append([[c,g],t])
+            # labels_test = stock.predict_SVM_Cluster(stock.test)
+            # res_preds_comp.append(trainScore(stock, labels_test))
+            k += 1
+    print(time.time() - t_tot)
     
     if False:
         if _gridSearch_:

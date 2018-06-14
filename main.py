@@ -1,4 +1,5 @@
 import sys
+import time
 import pickle
 import numpy as np
 import pandas as pd
@@ -135,7 +136,7 @@ C_range = [2e-5*100**k for k in range(11)]
 gamma_range = [2e-15*100**k for k in range(10)]
 
 if __name__ == "__main__":
-    ticker = 'ABBV'
+    ticker = 'TSLA'
 
     stock = Stock(ticker, considerOHL = False, train_test_data = _train_test_data_, train_size = 0.8)
 
@@ -153,11 +154,12 @@ if __name__ == "__main__":
                        random_state_clf = None,
                        consistent_clusters_multiclass = True,
                        extraTreesClf = True,
-                       predictNext_k_day = nxt_day_predict)
+                       predictNext_k_day = nxt_day_predict,
+                       extraTreesFirst = 0.2)
     if True:
         stock.fit(predictNext_k_day = nxt_day_predict,
                   gridSearch = _gridSearch_, 
-                  parameters = {'C' : C_range, 'gamma' : gamma_range}, k_fold_num = 5)
+                  parameters = {'C' : np.array(C_range), 'gamma' : np.array(gamma_range)}, k_fold_num = 3)
         # stock.fit(predictNext_k_day = nxt_day_predict,
         #           gridSearch = _gridSearch_, 
         #           parameters = {'C' : np.linspace(2e-5,2e15,20), 'gamma' : np.linspace(2e-15,2e3,5)}, k_fold_num = 5)
