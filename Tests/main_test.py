@@ -172,7 +172,8 @@ if __name__ == "__main__":
                        consistent_clusters_multiclass = True,
                        extraTreesClf = True,
                        predictNext_k_day = nxt_day_predict,
-                       extraTreesFirst = 0.18)
+                       extraTreesFirst = 0.18,
+                       verbose = True)
 
     print()
     stock.fit(predictNext_k_day = nxt_day_predict,

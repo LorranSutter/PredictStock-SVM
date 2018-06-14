@@ -70,16 +70,16 @@ class Stock:
                 self.df = pd.read_csv(self.__db_dir__ + '/{0}/{1}.csv'.format(ticker[0].upper(), ticker), parse_dates = True)
             except FileNotFoundError as e:
                 print(e)
-                sys.exit()
+                raise e
 
     # * Delete extra columns
     def __delExtraColumns__(self):
         for col in [col for col in self.wholeDF.columns if col not in self.__default_columns__]:
             self.wholeDF.pop(col)
-            print(col + " extra column removed!")
+            # print(col + " extra column removed!")
         for col in [col for col in self.df.columns if col not in self.__default_columns__]:
             self.df.pop(col)
-            print(col + " extra column removed!")
+            # print(col + " extra column removed!")
 
     # * Add predict_next_k_day array to respective stockSVM
     def __add_PredictNxtDay_to_SVM__(self, k_days):
@@ -211,13 +211,14 @@ class Stock:
             self.__train_test_split__()
     
     # * Say if all clusters has at least num_clusters items
-    def __consistent_clusters__(self, num_clusters, labels):
+    def __consistent_clusters__(self, num_clusters, labels, consistent_rate = 0.1, verbose = False):
         freqs = Counter(labels).values()
         for freq in Counter(labels).values():
-            print(freq)
+            if verbose:
+                print(freq)
             if freq <= num_clusters:
                 return False
-        if min(freqs) / max(freqs) < 0.1:
+        if min(freqs) / max(freqs) < consistent_rate:
             return False
         return True
 
@@ -257,7 +258,8 @@ class Stock:
                            consistent_clusters_multiclass = False,
                            extraTreesClf = False,
                            predictNext_k_day = None,
-                           extraTreesFirst = 0.2):
+                           extraTreesFirst = 0.2,
+                           verbose = False):
         
         if extraTreesClf:
             if predictNext_k_day is None or predictNext_k_day <= 0:
@@ -280,18 +282,43 @@ class Stock:
         # self.df['labels_kmeans'] = labels
         
         if consistent_clusters_kmeans:
-            print('KMeans')
-            while not self.__consistent_clusters__(num_clusters, labels):
-                labels = self.__fit_KMeans__(self.df2, num_clusters = num_clusters, random_state_kmeans = None)
-                print()
+            if verbose:
+                print('KMeans')
+            # while not self.__consistent_clusters__(num_clusters, labels):
+
+            consistent = False
+            while not consistent:
+                for _ in range(50):
+                    if self.__consistent_clusters__(num_clusters, labels, verbose = verbose):
+                        consistent = True
+                        break
+                    labels = self.__fit_KMeans__(self.df2, num_clusters = num_clusters, random_state_kmeans = None)
+                    if verbose:
+                        print()
+                
+                if consistent:
+                    break
+                num_clusters -= 1
 
         if classifier is not None:
             labels_clf = self.__fit_Multiclass_Classifier__(self.df2, classifier = classifier, random_state_clf = random_state_clf, labels = labels)
             if consistent_clusters_multiclass:
-                print('Multiclass')
-                while not self.__consistent_clusters__(max(labels_clf) + 1, labels_clf):
-                    labels_clf = self.__fit_Multiclass_Classifier__(self.df2, classifier = classifier, random_state_clf = None, labels = labels)
-                    print()
+                if verbose:
+                    print('Multiclass')
+                
+                consistent = False
+                consistent_rate = 0.2
+                while not consistent:
+                    for _ in range(50):
+                        if self.__consistent_clusters__(max(labels_clf) + 1, labels_clf, consistent_rate, verbose = verbose):
+                            consistent = True
+                        labels_clf = self.__fit_Multiclass_Classifier__(self.df2, classifier = classifier, random_state_clf = None, labels = labels)
+                        if verbose:
+                            print()
+                    
+                    if consistent:
+                        break
+                    consistent_rate -= 0.02
 
         if classifier is not None:
             self.df.loc[:,'labels'] = labels_clf
@@ -399,7 +426,7 @@ class Stock:
             self.stockSVMs.append(new_stockSVM)
     
     # * Fit data in each SVM Cluster
-    def fit(self, predictNext_k_day, C = 1.0, gamma = 'auto', gridSearch = False, parameters = None, n_jobs = 3, k_fold_num = None, verbose = 1):
+    def fit(self, predictNext_k_day, C = 1.0, gamma = 'auto', gridSearch = False, parameters = None, n_jobs = 3, k_fold_num = None, verbose = True):
         if self.stockSVMs != []:
             for svm in self.stockSVMs:
                 if not svm.values.empty:

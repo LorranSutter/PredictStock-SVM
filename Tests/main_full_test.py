@@ -1,4 +1,5 @@
 import sys
+import time
 import pickle
 import numpy as np
 import pandas as pd
@@ -52,7 +53,7 @@ ind_dict = {
 
 if extraRandomTree:
     ind_funcs_params = []
-    with open('db/FeaturesTest.txt', 'r') as f:
+    with open('db/FeaturesTestOut2.txt', 'r') as f:
         for line in f:
             line = line.split(',')
             if len(line) == 1:
@@ -68,7 +69,7 @@ def gridSearchEstimators(stock):
             print("Best estimators: C = {0} gamma = {1}"\
                 .format(stockSVM.clf.best_estimator_.C, stockSVM.clf.best_estimator_.gamma))
 
-def trainScore(stock, labels_test):
+def trainScore(stock, labels_test, verbose = False):
     preds = []
     for k, lab in enumerate(labels_test):
         preds.append(int(stock.predict_SVM(lab, [stock.test.iloc[k]])))
@@ -77,23 +78,37 @@ def trainScore(stock, labels_test):
     test_pred = stock.test_pred.copy()
     l = len(preds)
 
-    res_preds_comp = [k == w for k,w in zip(test_pred, preds)]
-    print("{0} days : {1:.5f}%".format(0, sum(res_preds_comp)/l))
+    res_preds_comp = []
+
+    res_preds_comp.append(sum([k == w for k,w in zip(test_pred, preds)])/l)
+    if verbose:
+        print("{0} days : {1:.5f}%".format(0, res_preds_comp[-1]))
     for d in range(1,nxt_day_predict+3):
         preds.pop(0)
         test_pred.pop(-1)
         l = len(test_pred)
-        res_preds_comp = [k == w for k,w in zip(test_pred, preds)]
-        print("{0} days : {1:.5f}%".format(d, sum(res_preds_comp)/l))
-    print()
+        res_preds_comp.append(sum([k == w for k,w in zip(test_pred, preds)])/l)
+        if verbose:
+            print("{0} days : {1:.5f}%".format(d, res_preds_comp[-1]))
+    if verbose:
+        print()
+    
+    return res_preds_comp
 
 _gridSearch_ = True
 _train_test_data_ = True
 
+nxt_day_predict_list = [1,3,5,7,10]
+extraTreesFirst_list = np.arange(0.1,0.31,0.01)
+classifier_list = [None, 'OneVsOne']
+num_k_fold_list = [3,5,10]
+C_range = [2e-5*100**k for k in range(11)]
+gamma_range = [2e-15*100**k for k in range(10)]
+
 if __name__ == "__main__":
     ticker = 'TSLA2'
 
-    print("WITH Extra Trees Classifier\n")
+    t = time.time()
 
     stock = Stock(ticker, considerOHL = False, train_test_data = _train_test_data_, train_size = 0.8)
 
@@ -106,23 +121,28 @@ if __name__ == "__main__":
                        classifier = 'OneVsOne',
                        random_state_kmeans = None,
                        random_state_clf = None,
+                       consistent_clusters_kmeans = True,
                        consistent_clusters_multiclass = True,
                        extraTreesClf = True,
                        predictNext_k_day = nxt_day_predict,
-                       extraTreesFirst = 0.2)
+                       extraTreesFirst = 0.2,
+                       verbose = True)
 
     print()
-    # stock.fit(predictNext_k_day = nxt_day_predict,
-    #           gridSearch = _gridSearch_, 
-    #           parameters = {'C' : np.linspace(2e-5,2e3,30), 'gamma' : [2e-15]}, n_jobs = 2, k_fold_num = 5)
-    preds = []
-    for k, c in enumerate(np.linspace(2e-5,2e3,30)):
-        stock.fit(predictNext_k_day = nxt_day_predict, C = c)
-        labels_test = stock.predict_SVM_Cluster(stock.test)
-        preds.append([])
-        for w, lab in enumerate(labels_test):
-            preds[k].append(int(stock.predict_SVM(lab, [stock.test.iloc[w]])))
-    print()
+    stock.fit(predictNext_k_day = nxt_day_predict,
+              gridSearch = _gridSearch_, 
+              parameters = {'C' : np.linspace(2e-5,2e3,30), 'gamma' : [2e-15]}, n_jobs = 2, k_fold_num = 5)
+
+    print(time.time() - t)
+    # res_preds_comp = []
+    # k = 0
+    # for c in np.linspace(2e-5,2e3,30):
+    #     for g in np.linspace(2e-15,2e3,30):
+    #         stock.fit(predictNext_k_day = nxt_day_predict, C = c, gamma = g)
+    #         labels_test = stock.predict_SVM_Cluster(stock.test)
+    #         res_preds_comp.append(trainScore(stock, labels_test))
+    #         print("Iteration " + str(k), end = "\r")
+    #         k += 1
     
     if False:
         if _gridSearch_:

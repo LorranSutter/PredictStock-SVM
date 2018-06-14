@@ -54,7 +54,7 @@ ind_dict = {
 
 if extraRandomTree:
     ind_funcs_params = []
-    with open('db/FeaturesTestOut2.txt', 'r') as f:
+    with open('db/FeaturesTest.txt', 'r') as f:
         for line in f:
             line = line.split(',')
             if len(line) == 1:
@@ -131,36 +131,39 @@ def plotStock(stock, _gridSearch_, _train_test_data_, labels_test = None):
 _gridSearch_ = True
 _train_test_data_ = True
 
+C_range = [2e-5*100**k for k in range(11)]
+gamma_range = [2e-15*100**k for k in range(10)]
+
 if __name__ == "__main__":
-    ticker = 'TSLA2'
+    ticker = 'ABBV'
 
     stock = Stock(ticker, considerOHL = False, train_test_data = _train_test_data_, train_size = 0.8)
 
     stock.applyIndicators(ind_funcs_params)
     print()
-    stock.fit_kSVMeans(num_clusters = 4,\
-                       random_state_kmeans = 40,\
-                       random_state_clf = 1,\
-                       classifier = 'OneVsOne',\
-                       consistent_clusters_multiclass = True)
-    # stock.fit_kSVMeans(num_clusters = 4, 
-    #                    classifier = 'OneVsOne',
-    #                    random_state_kmeans = 40,
-    #                    random_state_clf = None,
-    #                    consistent_clusters_multiclass = True,
-    #                    extraTreesClf = False,
-    #                    predictNext_k_day = None)
+    # stock.fit_kSVMeans(num_clusters = 4,\
+    #                    random_state_kmeans = 40,\
+    #                    random_state_clf = 1,\
+    #                    classifier = 'OneVsOne',\
+    #                    consistent_clusters_multiclass = True)
+    stock.applyExtraTreesClassifier(nxt_day_predict)
+    stock.fit_kSVMeans(num_clusters = 4, 
+                       classifier = 'OneVsOne',
+                       random_state_kmeans = 40,
+                       random_state_clf = None,
+                       consistent_clusters_multiclass = True,
+                       extraTreesClf = True,
+                       predictNext_k_day = nxt_day_predict)
     if True:
-        stock.splitByLabel()
-
-        stock.applyPredict(nxt_day_predict)
-
+        stock.fit(predictNext_k_day = nxt_day_predict,
+                  gridSearch = _gridSearch_, 
+                  parameters = {'C' : C_range, 'gamma' : gamma_range}, k_fold_num = 5)
         # stock.fit(predictNext_k_day = nxt_day_predict,
         #           gridSearch = _gridSearch_, 
-        #           parameters = {'C' : np.linspace(2e-5,2e3,20), 'gamma' : np.linspace(2e-15,2e3,5)}, k_fold_num = 5)
-        stock.fit(predictNext_k_day = nxt_day_predict,
-                gridSearch = _gridSearch_, 
-                parameters = {'C' : np.linspace(2e-5,2e3,10), 'gamma' : [2e-15]}, n_jobs = 2, k_fold_num = 3)
+        #           parameters = {'C' : np.linspace(2e-5,2e15,20), 'gamma' : np.linspace(2e-15,2e3,5)}, k_fold_num = 5)
+        # stock.fit(predictNext_k_day = nxt_day_predict,
+        #         gridSearch = _gridSearch_, 
+        #         parameters = {'C' : np.linspace(2e-5,2e3,10), 'gamma' : [2e-15]}, n_jobs = 2, k_fold_num = 3)
         print()
 
         if _gridSearch_:
