@@ -52,7 +52,7 @@ ind_dict = {
              }
 
 ind_funcs_params = []
-with open('db/FeaturesTest.txt', 'r') as f:
+with open('db/FeaturesTestOut2.txt', 'r') as f:
     for line in f:
         line = line.split(',')
         if len(line) == 1:
@@ -99,7 +99,7 @@ def getGoodTickers(parameter_list):
 
             print()
             stock.fit(predictNext_k_day = nxt_day_predict,
-                    gridSearch = _gridSearch_, 
+                    fit_type = 'girdsearch', 
                     parameters = {'C' : np.linspace(2e-5,2e3,30), 'gamma' : [2e-15]}, n_jobs = 2, k_fold_num = 3)
         
             print("\n{} ticker SUCESS!\n".format(ticker))
@@ -153,6 +153,7 @@ def trainScore(stock, labels_test, verbose = False):
 _gridSearch_ = True
 _train_test_data_ = True
 C_range = [2e-5*100**k for k in range(11)]
+C_range = [2e-3,2e2]
 gamma_range = [2e-15*100**k for k in range(10)]
 gamma_range = [2e-15]
 
@@ -166,18 +167,20 @@ if __name__ == "__main__":
         print("\nWhere are the goodTickers file, man?\n")
         sys.exit()
 
+    goodTickers = ['TSLA2']
+
     for ticker in goodTickers:
         try:
 
-            nxt = False
-            if os.path.isfile(db_dir + '/tickersTimeResult.txt'):
-                with open(db_dir + '/tickersTimeResult.txt','a') as f:
-                    for line in f:
-                        if ticker in line:
-                            nxt = True
-                            break
+            # nxt = False
+            # if os.path.isfile(db_dir + '/tickersTimeResult.txt'):
+            #     with open(db_dir + '/tickersTimeResult.txt','a') as f:
+            #         for line in f:
+            #             if ticker in line:
+            #                 nxt = True
+            #                 break
             
-            if nxt: continue
+            # if nxt: continue
 
             print("Trying {} ticker".format(ticker))
 
@@ -200,42 +203,44 @@ if __name__ == "__main__":
             print("  Fitting K-SVMeans")
             t_kSVMeans = time.time()
             stock.fit_kSVMeans(num_clusters = 4, 
-                               classifier = 'OneVsOne',
+                               classifier = None,
                                random_state_kmeans = None,
                                random_state_clf = None,
                                consistent_clusters_kmeans = True,
                                consistent_clusters_multiclass = True,
                                extraTreesClf = True,
                                predictNext_k_day = nxt_day_predict,
-                               extraTreesFirst = 0.2,
+                               extraTreesFirst = 1,
                                verbose = False)
             t_kSVMeans = time.time() - t_kSVMeans
             print("    K-SVMeans fitted")
             print("                    Time elapsed: {}".format(t_kSVMeans))
 
-            print("  Fitting GridSearchCV")
-            t_gridSearch = time.time()
+            print("  Fitting Cross Validation")
+            t_crossValidation = time.time()
             stock.fit(predictNext_k_day = nxt_day_predict,
-                      gridSearch = _gridSearch_, 
+                      fit_type = 'crossvalidation',
+                      maxRunTime = 10,
                       parameters = {'C' : C_range, 'gamma' : gamma_range}, n_jobs = 2, k_fold_num = 3)
-            t_gridSearch = time.time() - t_gridSearch
+            t_crossValidation = time.time() - t_crossValidation
             print("    GridSearchCV fitted")
-            print("                       Time elapsed: {}".format(t_gridSearch))
+            print("                       Time elapsed: {}".format(t_crossValidation))
         
             labels_test1 = stock.predict_SVM_Cluster(stock.test)
             res_preds_comp = trainScore(stock, labels_test1)
 
-            print("Total time elapsed: {}".format(sum([t_indicators, t_extraTrees, t_kSVMeans, t_gridSearch])))
+            print("Total time elapsed: {}".format(sum([t_indicators, t_extraTrees, t_kSVMeans, t_crossValidation])))
 
             print("{} ticker SUCESS!\n".format(ticker))
 
             res_preds_comp = ','.join(list(map(str,res_preds_comp)))
-            t = ','.join(list(map(str,[t_indicators, t_extraTrees, t_kSVMeans, t_gridSearch])))
+            t = ','.join(list(map(str,[t_indicators, t_extraTrees, t_kSVMeans, t_crossValidation])))
             with open(db_dir + '/tickersTimeResult.txt','a') as f:
                 f.write("{0};{1};{2}\n".format(ticker, t, res_preds_comp))
 
         except Exception as e:
             print("\n{} ticker FAIL!\n".format(ticker))
-            with open(db_dir + '/tickersTimeResult.txt','a') as f:
-                f.write(ticker + ' FAIL!\n')
+            print(e)
+            # with open(db_dir + '/tickersTimeResult.txt','a') as f:
+            #     f.write(ticker + ' FAIL!\n')
             pass

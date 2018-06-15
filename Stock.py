@@ -426,18 +426,24 @@ class Stock:
             self.stockSVMs.append(new_stockSVM)
     
     # * Fit data in each SVM Cluster
-    def fit(self, predictNext_k_day, C = 1.0, gamma = 'auto', gridSearch = False, parameters = None, n_jobs = 3, k_fold_num = None, verbose = True):
+    def fit(self, predictNext_k_day, C = 1.0, gamma = 'auto', fit_type = None, parameters = None, n_jobs = 3, k_fold_num = None, maxRunTime = 25, verbose = True):
         if self.stockSVMs != []:
             for svm in self.stockSVMs:
                 if not svm.values.empty:
-                    if gridSearch:
-                        svm.fit_GridSearch(predictNext_k_day = predictNext_k_day,
-                                          parameters = parameters,
-                                          n_jobs = n_jobs,
-                                          k_fold_num = k_fold_num,
-                                          verbose = verbose)
-                    else:
+                    if fit_type is None or fit_type == 'ordinary':
                         svm.fit(predictNext_k_day, C, gamma)
+                    elif fit_type == 'gridsearch':
+                        svm.fit_GridSearch(predictNext_k_day = predictNext_k_day,
+                                           parameters = parameters,
+                                           n_jobs = n_jobs,
+                                           k_fold_num = k_fold_num,
+                                           verbose = verbose)
+                    elif fit_type == 'crossvalidation':
+                        svm.fit_Cross_Validation(predictNext_k_day = predictNext_k_day,
+                                                 parameters = parameters,
+                                                 k_fold_num = k_fold_num,
+                                                 maxRunTime = maxRunTime,
+                                                 verbose = verbose)
     
     # * Predict which SVM Cluster df param belongs
     def predict_SVM_Cluster(self, df):

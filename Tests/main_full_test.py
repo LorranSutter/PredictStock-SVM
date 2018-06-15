@@ -128,7 +128,7 @@ if __name__ == "__main__":
 
     print()
     # stock.fit(predictNext_k_day = nxt_day_predict,
-    #           gridSearch = _gridSearch_, 
+    #           fit_type = 'gridseach', 
     #           parameters = {'C' : np.linspace(2e-5,2e3,30), 'gamma' : [2e-15]}, n_jobs = 2, k_fold_num = 5)
 
     res_preds_comp = []

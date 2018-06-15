@@ -177,7 +177,7 @@ if __name__ == "__main__":
 
     print()
     stock.fit(predictNext_k_day = nxt_day_predict,
-            gridSearch = _gridSearch_, 
+            fit_type = 'girdsearch', 
             parameters = {'C' : np.linspace(2e-5,2e3,10), 'gamma' : [2e-15]}, n_jobs = 2, k_fold_num = 3)
     print()
 
@@ -199,7 +199,7 @@ if __name__ == "__main__":
     stock2.applyPredict(nxt_day_predict)
 
     stock2.fit(predictNext_k_day = nxt_day_predict,
-            gridSearch = _gridSearch_, 
+            fit_type = 'gridsearch',
             parameters = {'C' : np.linspace(2e-5,2e3,10), 'gamma' : [2e-15]}, n_jobs = 2, k_fold_num = 3)
     
     if True:

@@ -55,7 +55,7 @@ ind_dict = {
 
 if extraRandomTree:
     ind_funcs_params = []
-    with open('db/FeaturesTest.txt', 'r') as f:
+    with open('db/FeaturesTestOut2.txt', 'r') as f:
         for line in f:
             line = line.split(',')
             if len(line) == 1:
@@ -136,7 +136,7 @@ C_range = [2e-5*100**k for k in range(11)]
 gamma_range = [2e-15*100**k for k in range(10)]
 
 if __name__ == "__main__":
-    ticker = 'TSLA'
+    ticker = 'TSLA2'
 
     stock = Stock(ticker, considerOHL = False, train_test_data = _train_test_data_, train_size = 0.8)
 
@@ -149,22 +149,29 @@ if __name__ == "__main__":
     #                    consistent_clusters_multiclass = True)
     stock.applyExtraTreesClassifier(nxt_day_predict)
     stock.fit_kSVMeans(num_clusters = 4, 
-                       classifier = 'OneVsOne',
-                       random_state_kmeans = 40,
+                       classifier = None,
+                       random_state_kmeans = None,
                        random_state_clf = None,
+                       consistent_clusters_kmeans = True,
                        consistent_clusters_multiclass = True,
                        extraTreesClf = True,
                        predictNext_k_day = nxt_day_predict,
-                       extraTreesFirst = 0.2)
+                       extraTreesFirst = 1,
+                       verbose = True)
     if True:
+        print("Init fit")
+        t = time.time()
         stock.fit(predictNext_k_day = nxt_day_predict,
-                  gridSearch = _gridSearch_, 
+                  fit_type = None, 
+                  C = 2e-5,
+                  gamma = 2e-15,
                   parameters = {'C' : np.array(C_range), 'gamma' : np.array(gamma_range)}, k_fold_num = 3)
+        print(time.time() - t)
         # stock.fit(predictNext_k_day = nxt_day_predict,
-        #           gridSearch = _gridSearch_, 
+        #           fit_type = 'girdsearch', 
         #           parameters = {'C' : np.linspace(2e-5,2e15,20), 'gamma' : np.linspace(2e-15,2e3,5)}, k_fold_num = 5)
         # stock.fit(predictNext_k_day = nxt_day_predict,
-        #         gridSearch = _gridSearch_, 
+        #         fit_type = 'girdsearch', 
         #         parameters = {'C' : np.linspace(2e-5,2e3,10), 'gamma' : [2e-15]}, n_jobs = 2, k_fold_num = 3)
         print()
 
