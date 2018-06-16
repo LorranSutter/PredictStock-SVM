@@ -112,3 +112,5 @@ db/TSLA2\.csv
 db/TSLA2016\.csv
 
 db/TSLA3\.csv
+
+*.ipynb
