@@ -162,8 +162,8 @@ if __name__ == "__main__":
         print("Init fit")
         t = time.time()
         stock.fit(predictNext_k_day = nxt_day_predict,
-                  fit_type = None, 
-                  C = 2e-5,
+                  fit_type = 'gridsearch', 
+                  C = 2e3,
                   gamma = 2e-15,
                   parameters = {'C' : np.array(C_range), 'gamma' : np.array(gamma_range)}, k_fold_num = 3)
         print(time.time() - t)

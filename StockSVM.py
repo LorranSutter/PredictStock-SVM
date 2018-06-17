@@ -56,7 +56,7 @@ class StockSVM:
         self.clf = GridSearchCV(svc, parameters, n_jobs = n_jobs, cv = k_fold_num, verbose = verbose)
         self.clf = self.clf.fit(vals, preds)
     
-    def fit_Cross_Validation(self, predictNext_k_day, parameters, k_fold_num = 3, maxRunTime = 25, verbose = True):
+    def fit_Cross_Validation(self, predictNext_k_day, parameters, k_fold_num = 3, maxRunTime = 25, verbose = 1):
         if predictNext_k_day not in self.predict_next_k_days.keys():
             print('{0} day(s) for predictNext not defined! Please, add a vector for that days first!'.format(predictNext_k_day))
             sys.exit()
@@ -101,7 +101,8 @@ class StockSVM:
         queue = multiprocessing.Queue()
         for params in it.product(*parameters.values()):
 
-            print("Params: ", params)
+            if verbose != 0:
+                print("Params: ", params)
 
             # Create model with current params
             dict_params = dict(zip(keys,params))

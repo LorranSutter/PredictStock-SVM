@@ -52,7 +52,7 @@ ind_dict = {
 
 if extraRandomTree:
     ind_funcs_params = []
-    with open('db/FeaturesTest.txt', 'r') as f:
+    with open('db/FeaturesTestOut2.txt', 'r') as f:
         for line in f:
             line = line.split(',')
             if len(line) == 1:
@@ -156,8 +156,6 @@ _train_test_data_ = True
 if __name__ == "__main__":
     ticker = 'TSLA2'
 
-    print("WITH Extra Trees Classifier\n")
-
     stock = Stock(ticker, considerOHL = False, train_test_data = _train_test_data_, train_size = 0.8)
 
     print("Calculating indicators...")
@@ -167,60 +165,37 @@ if __name__ == "__main__":
     stock.applyExtraTreesClassifier(nxt_day_predict)
     stock.fit_kSVMeans(num_clusters = 4, 
                        classifier = 'OneVsOne',
-                       random_state_kmeans = 40,
-                       random_state_clf = 1,
+                       random_state_kmeans = None,
+                       random_state_clf = None,
+                       consistent_clusters_kmeans = True,
                        consistent_clusters_multiclass = True,
                        extraTreesClf = True,
                        predictNext_k_day = nxt_day_predict,
-                       extraTreesFirst = 0.18,
+                       extraTreesFirst = 1,
                        verbose = True)
 
     print()
     stock.fit(predictNext_k_day = nxt_day_predict,
-            fit_type = 'girdsearch', 
-            parameters = {'C' : np.linspace(2e-5,2e3,10), 'gamma' : [2e-15]}, n_jobs = 2, k_fold_num = 3)
+              fit_type = 'gridsearch', 
+              parameters = {'C' : np.linspace(2e-5,2e11,10), 'gamma' : np.linspace(2e-15,2e3,10)},
+              n_jobs = 2,
+              k_fold_num = 3,
+              verbose = True)
     print()
-
-    print("WITHOUT Extra Trees Classifier\n")
-
-    stock2 = Stock(ticker, considerOHL = False, train_test_data = _train_test_data_, train_size = 0.8)
-
-    print("Calculating indicators...")
-    stock2.applyIndicators(ind_funcs_params, verbose = False)
-    print("Indicators calculated!\n")
-
-    stock2.fit_kSVMeans(num_clusters = 4,\
-                       random_state_kmeans = 40,\
-                       random_state_clf = 1,\
-                       classifier = 'OneVsOne',\
-                       consistent_clusters_multiclass = True)    
-    stock2.splitByLabel()
-
-    stock2.applyPredict(nxt_day_predict)
-
-    stock2.fit(predictNext_k_day = nxt_day_predict,
-            fit_type = 'gridsearch',
-            parameters = {'C' : np.linspace(2e-5,2e3,10), 'gamma' : [2e-15]}, n_jobs = 2, k_fold_num = 3)
     
     if True:
         if _gridSearch_:
             print('grid Estimators 1\n')
             gridSearchEstimators(stock)
             print()
-            print('grid Estimators 2\n')
-            gridSearchEstimators(stock2)
-            print()
 
         labels_test1 = None
-        labels_test2 = None
         if _train_test_data_:
             print('Score test 1\n')
             labels_test1 = stock.predict_SVM_Cluster(stock.test)
             trainScore(stock, labels_test1)
-            print('Score test 2\n')
-            labels_test2 = stock2.predict_SVM_Cluster(stock2.test)
-            trainScore(stock2, labels_test2)
         
         if True:
-            plotStockBoth(stock, stock2, _gridSearch_, _train_test_data_, labels_test1, labels_test2)
+            # plotStockBoth(stock, stock2, _gridSearch_, _train_test_data_, labels_test1, labels_test2)
             # plotStock(stock2, _gridSearch_, _train_test_data_, labels_test2)
+            pass

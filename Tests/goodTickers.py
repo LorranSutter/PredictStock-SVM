@@ -153,9 +153,9 @@ def trainScore(stock, labels_test, verbose = False):
 _gridSearch_ = True
 _train_test_data_ = True
 C_range = [2e-5*100**k for k in range(11)]
-C_range = [2e-3,2e2]
+# C_range = [2e-3,2e2]
 gamma_range = [2e-15*100**k for k in range(10)]
-gamma_range = [2e-15]
+# gamma_range = [2e-15]
 
 if __name__ == "__main__":
 
@@ -167,7 +167,7 @@ if __name__ == "__main__":
         print("\nWhere are the goodTickers file, man?\n")
         sys.exit()
 
-    goodTickers = ['TSLA2']
+    goodTickers = ['TSLA']
 
     for ticker in goodTickers:
         try:
@@ -220,8 +220,8 @@ if __name__ == "__main__":
             t_crossValidation = time.time()
             stock.fit(predictNext_k_day = nxt_day_predict,
                       fit_type = 'crossvalidation',
-                      maxRunTime = 10,
-                      parameters = {'C' : C_range, 'gamma' : gamma_range}, n_jobs = 2, k_fold_num = 3)
+                      maxRunTime = 25,
+                      parameters = {'C' : C_range, 'gamma' : gamma_range}, n_jobs = 5, k_fold_num = 3, verbose = 2)
             t_crossValidation = time.time() - t_crossValidation
             print("    GridSearchCV fitted")
             print("                       Time elapsed: {}".format(t_crossValidation))

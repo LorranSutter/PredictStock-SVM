@@ -1,5 +1,7 @@
+import os
 import sys
 import time
+import json
 import pickle
 import numpy as np
 import pandas as pd
@@ -16,7 +18,7 @@ from Stock import Stock
 
 num_clusters = 5
 nxt_day_predict = 7
-db_dir = 'db'
+db_dir_res = 'db/results'
 extraRandomTree = True
 
 ind_dict = {
@@ -63,12 +65,6 @@ if extraRandomTree:
                 params = map(int, params)
                 ind_funcs_params.append([ind_dict[line[0]], tuple(params)])
 
-def gridSearchEstimators(stock):
-    for stockSVM in stock.stockSVMs:
-        if stockSVM.clf is not None:
-            print("Best estimators: C = {0} gamma = {1}"\
-                .format(stockSVM.clf.best_estimator_.C, stockSVM.clf.best_estimator_.gamma))
-
 def trainScore(stock, labels_test, verbose = False):
     preds = []
     for k, lab in enumerate(labels_test):
@@ -95,67 +91,116 @@ def trainScore(stock, labels_test, verbose = False):
     
     return res_preds_comp
 
+def indicators(stock):
+    print("  Applying Indicators")
+    t_indicators = time.time()
+    stock.applyIndicators(ind_funcs_params, verbose = False)
+    t_indicators = time.time() - t_indicators
+    print("    Indicators applied")
+    print("                      Time elapsed: {}".format(t_indicators))
+
+    return t_indicators
+
+def extraTrees(stock):
+    print("  Applying Extra Trees CLF")
+    t_extraTrees = time.time()
+    stock.applyExtraTreesClassifier(nxt_day_predict)
+    t_extraTrees = time.time() - t_extraTrees
+    print("    Extra Tres CLF applied")
+    print("                    Time elapsed: {}".format(t_extraTrees))
+
+    return t_extraTrees
+
+def ksvmeans(stock, random_state_kmeans, random_state_clf):
+    print("  Fitting K-SVMeans")
+    t_kSVMeans = time.time()
+    stock.fit_kSVMeans(num_clusters = 4, 
+                       classifier = 'OneVsOne',
+                       random_state_kmeans = random_state_kmeans,
+                       random_state_clf = random_state_clf,
+                       consistent_clusters_kmeans = False,
+                       consistent_clusters_multiclass = False,
+                       extraTreesClf = True,
+                       predictNext_k_day = nxt_day_predict,
+                       extraTreesFirst = 0.9,
+                       verbose = False)
+    t_kSVMeans = time.time() - t_kSVMeans
+    print("    K-SVMeans fitted")
+    print("                    Time elapsed: {}".format(t_kSVMeans))
+
+    return t_kSVMeans
+
+def fit(stock, C_range, gamma_range, k_fold_num):
+    print("  Fitting SVMs")
+    t_fit = time.time()
+    stock.fit(predictNext_k_day = nxt_day_predict,
+              fit_type = None,
+              maxRunTime = 25,
+              parameters = {'C' : C_range, 'gamma' : gamma_range},
+              n_jobs = 2,
+              k_fold_num = k_fold_num,
+              verbose = True)
+    t_fit = time.time() - t_fit
+    print("    SVMs fitted")
+    print("                       Time elapsed: {}".format(t_fit))
+
+    return t_fit
+
 _gridSearch_ = True
 _train_test_data_ = True
 
-nxt_day_predict_list = [1,3,5,7,10]
+nxt_day_predict_list = [3,5,7,10]
 extraTreesFirst_list = np.arange(0.1,0.31,0.01)
 classifier_list = [None, 'OneVsOne']
 num_k_fold_list = [3,5,10]
-C_range = [2e-5*100**k for k in range(11)]
-gamma_range = [2e-15*100**k for k in range(10)]
+C_range = [2e-5*100**k for k in range(9)] # Max 2e11
+gamma_range = [2e-15*100**k for k in range(8)] # Max 2e-1
+rdms_kmeans = []
+rdms_clf = []
 
 if __name__ == "__main__":
     ticker = 'TSLA2'
+    res_file = '{0}/{1}result.json'.format(db_dir_res, ticker)
+    with open(res_file, 'w') as f:
+        pass
 
     stock = Stock(ticker, considerOHL = False, train_test_data = _train_test_data_, train_size = 0.8)
 
-    print("Calculating indicators...")
-    stock.applyIndicators(ind_funcs_params, verbose = False)
-    print("Indicators calculated!\n")
+    t_indicators = indicators(stock)
+    t_extraTrees = extraTrees(stock)
 
-    stock.applyExtraTreesClassifier(nxt_day_predict)
-    stock.fit_kSVMeans(num_clusters = 4, 
-                       classifier = 'OneVsOne',
-                       random_state_kmeans = None,
-                       random_state_clf = None,
-                       consistent_clusters_kmeans = True,
-                       consistent_clusters_multiclass = True,
-                       extraTreesClf = True,
-                       predictNext_k_day = nxt_day_predict,
-                       extraTreesFirst = 0.2,
-                       verbose = True)
+    rdm_states = np.random.choice(len(stock.df.index), size = 30, replace = False)
 
-    print()
-    # stock.fit(predictNext_k_day = nxt_day_predict,
-    #           fit_type = 'gridseach', 
-    #           parameters = {'C' : np.linspace(2e-5,2e3,30), 'gamma' : [2e-15]}, n_jobs = 2, k_fold_num = 5)
+    file_writting = dict()
 
-    res_preds_comp = []
-    k = 0
-    param_times = []
-    t_tot = time.time()
-    for c in C_range:
-        for g in gamma_range:
-            t = time.time()
-            stock.fit(predictNext_k_day = nxt_day_predict, C = c, gamma = g)
-            t = time.time() - t
-            print("C " + str(c) + " gamma " + str(g))
-            print("Iteration " + str(k) + " time elapsed: " + str(t))
-            param_times.append([[c,g],t])
-            # labels_test = stock.predict_SVM_Cluster(stock.test)
-            # res_preds_comp.append(trainScore(stock, labels_test))
-            k += 1
-    print(time.time() - t_tot)
-    
-    if False:
-        if _gridSearch_:
-            print('grid Estimators 1\n')
-            gridSearchEstimators(stock)
-            print()
+    for rdm_state in rdm_states:
+        res_preds_comp = ''
+        t = ''
 
-        labels_test1 = None        
-        if _train_test_data_:
-            print('Score test 1\n')
-            labels_test1 = stock.predict_SVM_Cluster(stock.test)
-            trainScore(stock, labels_test1)
+        # ! Problema
+        # ! Ao refazer a extraTrees, o self.df está com os features já filtrados
+        # ! Então ao fazer self.features = self.df[self.indicators_list]... alguns features não são encontrados
+
+        # t_extraTrees = extraTrees(stock)
+
+        # ! Problema
+        # ! Ao refazer o fit do K-SVMeans, a coluna predict_k_days some. I don't know why
+
+        t_kSVMeans = ksvmeans(stock, random_state_kmeans = rdm_state, random_state_clf = rdm_state)
+        t_fit = fit(stock, C_range = C_range, gamma_range = gamma_range, k_fold_num = 3)
+
+        labels_test = stock.predict_SVM_Cluster(stock.test)
+        res_preds_comp = trainScore(stock, labels_test)
+
+        print("Total time elapsed: {}".format(sum([t_indicators, t_extraTrees, t_kSVMeans, t_fit])))
+
+        t = [t_indicators, t_extraTrees, t_kSVMeans, t_fit]
+
+        file_writting['ticker'] = ticker
+        file_writting['random_state'] = str(rdm_state)
+        file_writting['time'] = t
+        file_writting['preds_comp'] = res_preds_comp
+
+        with open(res_file,'a') as f:
+            json.dump(file_writting, f)
+            f.write('\n')
