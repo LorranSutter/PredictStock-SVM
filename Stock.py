@@ -29,6 +29,8 @@ class Stock:
         self.clf = None
         self.stockSVMs = []
         self.available_labels = []
+        self.random_state_kmeans = None
+        self.random_state_clf = None
 
         if not considerOHL:
             self.__OHL__ = ['Open','High','Low']
@@ -76,10 +78,8 @@ class Stock:
     def __delExtraColumns__(self):
         for col in [col for col in self.wholeDF.columns if col not in self.__default_columns__]:
             self.wholeDF.pop(col)
-            # print(col + " extra column removed!")
         for col in [col for col in self.df.columns if col not in self.__default_columns__]:
             self.df.pop(col)
-            # print(col + " extra column removed!")
 
     # * Add predict_next_k_day array to respective stockSVM
     def __add_PredictNxtDay_to_SVM__(self, k_days):
@@ -164,13 +164,15 @@ class Stock:
         if not found_target:
             self.applyPredict(predictNext_k_day, addPredictDaySVM = False)
             self.targets = self.df['predict_' + str(predictNext_k_day) + '_days'].values
-        
+
+        # Remove rows correspondent to NaN values in targets already removed above        
         self.targets = self.targets[~np.isnan(self.targets)]
 
-        # Remove rows correspondent to NaN values in targets already removed above
         if self.__train_test_data__:
+            # self.features = self.wholeDF[self.indicators_list].iloc[predictNext_k_day-1:]
             self.features = self.df[self.indicators_list].iloc[predictNext_k_day-1:]
         else:
+            # self.features = self.wholeDF[self.indicators_list].iloc[predictNext_k_day-1:-predictNext_k_day]
             self.features = self.df[self.indicators_list].iloc[predictNext_k_day-1:-predictNext_k_day]
         
         self.__fit_ExtraTreesClassifier__(self.features, self.targets, predictNext_k_day, n_estimators = n_estimators, random_state = random_state)
@@ -188,13 +190,19 @@ class Stock:
 
     # * Apply indicators
     def applyIndicators(self, ind_funcs_params, replaceInf = True, remNaN = True, verbose = True):
-        for func_param in ind_funcs_params:
+        l = len(ind_funcs_params)
+        for k, func_param in enumerate(ind_funcs_params):
             if func_param[1] != None:
                 func_param[0](self.wholeDF, *func_param[1])
             else:
                 func_param[0](self.wholeDF)
             if verbose:
-                print(func_param[0].__name__ + " indicator calculated!")
+                print(func_param[0].__name__ + " indicator calculated! {0} of {1} indicators calculated".format(k, l))
+            else:
+                print("{0} of {1} indicators calculated".format(k, l), end = "\r")
+        if not verbose:
+            # sys.stdout.write('\x1b[1A') # Go to the above line
+            sys.stdout.write('\x1b[2K') # Erase line
         
         default = set(self.__default_main_columns__)
         self.indicators_list = [col for col in self.wholeDF.columns if col not in default and 'predict' not in col]
@@ -223,25 +231,25 @@ class Stock:
         return True
 
     # * K-Means algorithm
-    def __fit_KMeans__(self, df, num_clusters = 5, random_state_kmeans = None):
+    def __fit_KMeans__(self, df, num_clusters = 5):
         self.clf = KMeans(n_clusters = num_clusters,
                           init = 'k-means++',
                           algorithm = 'full',
                           n_jobs = -1,
-                          random_state = random_state_kmeans)
+                          random_state = self.random_state_kmeans)
         self.clf = self.clf.fit(df.values)
         
         return self.clf.predict(df.values)
 
     # * Multiclass classifier algorithm
-    def __fit_Multiclass_Classifier__(self, df, classifier, random_state_clf, labels):
+    def __fit_Multiclass_Classifier__(self, df, classifier, labels):
         if classifier == 'OneVsOne':
             self.clf = OneVsOneClassifier(
-                                            svm.LinearSVC(random_state = random_state_clf))\
+                                            svm.LinearSVC(random_state = self.random_state_clf))\
                                             .fit(df.values, labels)
         elif classifier == 'OneVsRest':
             self.clf = OneVsRestClassifier(
-                                            svm.LinearSVC(random_state = random_state_clf))\
+                                            svm.LinearSVC(random_state = self.random_state_clf))\
                                             .fit(df.values, labels)
         else:
             print('Invalid input classifier!')
@@ -261,6 +269,16 @@ class Stock:
                            extraTreesFirst = 0.2,
                            verbose = False):
         
+        if random_state_kmeans is None:
+            self.random_state_kmeans = np.random.randint(0, len(self.df.index))
+        else:
+            self.random_state_kmeans = random_state_kmeans
+        
+        if random_state_clf is None:
+            self.random_state_clf = np.random.randint(0, len(self.df.index))
+        else:
+            self.random_state_clf = random_state_clf
+
         if extraTreesClf:
             if predictNext_k_day is None or predictNext_k_day <= 0:
                 print("predictNext_k_day must be greater than 0 when extraTreesClf is True!")
@@ -272,19 +290,18 @@ class Stock:
                 i = self.__mapDayIdExtraTreesClf__[predictNext_k_day]
                 split = int(len(self.extraTreesFeatures[i])*extraTreesFirst)
                 self.features2 = [feature[0] for feature in self.extraTreesFeatures[i][:split]]
-                self.df2 = self.df.loc[:,['Close'] + self.features2]
+                df = self.df.loc[:,['Close'] + self.features2]
         else:
-            self.df2 = self.df.loc[:,['Close'] + self.indicators_list]
+            df = self.df.loc[:,['Close'] + self.indicators_list]
         
-        labels = self.__fit_KMeans__(self.df2, num_clusters = num_clusters, random_state_kmeans = random_state_kmeans)
+        labels = self.__fit_KMeans__(df, num_clusters = num_clusters)
 
         self.df.loc[:,'labels_kmeans'] = labels
-        # self.df['labels_kmeans'] = labels
+        len_df = len(df.index)
         
         if consistent_clusters_kmeans:
             if verbose:
                 print('KMeans')
-            # while not self.__consistent_clusters__(num_clusters, labels):
 
             consistent = False
             while not consistent:
@@ -292,7 +309,8 @@ class Stock:
                     if self.__consistent_clusters__(num_clusters, labels, verbose = verbose):
                         consistent = True
                         break
-                    labels = self.__fit_KMeans__(self.df2, num_clusters = num_clusters, random_state_kmeans = None)
+                    self.random_state_kmeans = np.random.randint(0, len_df)
+                    labels = self.__fit_KMeans__(df, num_clusters = num_clusters)
                     if verbose:
                         print()
                 
@@ -301,7 +319,7 @@ class Stock:
                 num_clusters -= 1
 
         if classifier is not None:
-            labels_clf = self.__fit_Multiclass_Classifier__(self.df2, classifier = classifier, random_state_clf = random_state_clf, labels = labels)
+            labels_clf = self.__fit_Multiclass_Classifier__(df, classifier = classifier, labels = labels)
             if consistent_clusters_multiclass:
                 if verbose:
                     print('Multiclass')
@@ -312,7 +330,9 @@ class Stock:
                     for _ in range(50):
                         if self.__consistent_clusters__(max(labels_clf) + 1, labels_clf, consistent_rate, verbose = verbose):
                             consistent = True
-                        labels_clf = self.__fit_Multiclass_Classifier__(self.df2, classifier = classifier, random_state_clf = None, labels = labels)
+                            break
+                        self.random_state_clf = np.random.randint(0, len_df)
+                        labels_clf = self.__fit_Multiclass_Classifier__(df, classifier = classifier, labels = labels)
                         if verbose:
                             print()
                     
@@ -322,10 +342,8 @@ class Stock:
 
         if classifier is not None:
             self.df.loc[:,'labels'] = labels_clf
-            # self.df['labels'] = labels_clf
         else:
             self.df.loc[:,'labels'] = labels
-            # self.df['labels'] = labels
 
         self.__set_available_labels__()
 
@@ -336,12 +354,10 @@ class Stock:
             self.__add_PredictNxtDay_to_SVM__(predictNext_k_day)
 
             if self.__train_test_data__:
-                self.__train_test_split__(df = self.df2,
+                self.__train_test_split__(df = df,
                                           extraTreesClf = True,
                                           predictNext_k_day = predictNext_k_day,
                                           extraTreesFirst = extraTreesFirst)
-
-        # return labels
 
     # * Apply predict next n days
     def applyPredict(self, k_days = 1, addPredictDaySVM = True):
@@ -382,16 +398,12 @@ class Stock:
         
         if self.__train_test_data__:
             self.df.loc[:,'predict_' + str(k_days) + '_days'] = predict_next[:len(self.df.index)]
-            # self.df['predict_' + str(k_days) + '_days'] = predict_next[:len(self.df.index)]
             self.test_pred = predict_next[len(self.df.index):]
         else:
             self.df.loc[:,'predict_' + str(k_days) + '_days'] = predict_next
-            # self.df['predict_' + str(k_days) + '_days'] = predict_next
 
         if addPredictDaySVM:
             self.__add_PredictNxtDay_to_SVM__(k_days)
-
-        # return predict_next
 
     # * Split and return a data frame
     def splitByLabel(self, extraTreesClf = False, predictNext_k_day = None, extraTreesFirst = 0.2):
@@ -430,6 +442,10 @@ class Stock:
         if self.stockSVMs != []:
             for svm in self.stockSVMs:
                 if not svm.values.empty:
+
+                    if verbose:
+                        print("SVM length: " + str(len(svm.values)))
+
                     if fit_type is None or fit_type == 'ordinary':
                         svm.fit(predictNext_k_day, C, gamma)
                     elif fit_type == 'gridsearch':
