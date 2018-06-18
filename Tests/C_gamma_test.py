@@ -22,6 +22,20 @@ num_clusters = 5
 nxt_day_predict = 7
 db_dir_res = 'db/results/C_gamma'
 
+_gridSearch_ = True
+_train_test_data_ = True
+
+nxt_day_predict_list = [3,5,7,10]
+extraTreesFirst_list = np.arange(0.1,0.31,0.01)
+classifier_list = [None, 'OneVsOne']
+num_k_fold_list = [3,5,10]
+C_range = [2e-5*100**k for k in range(9)] # Max 2e11
+gamma_range = [2e-15*100**k for k in range(8)] # Max 2e-1
+rdms_kmeans = []
+rdms_clf = []
+maxRunTime = 120
+k_fold_num = 3
+
 ind_dict = {
              'SMA' : ind.SMA,     # (df, n)
              'EMA' : ind.EMA,     # (df, n)
@@ -56,7 +70,7 @@ ind_dict = {
 
 
 ind_funcs_params = []
-with open('db/FeaturesTestOut2.txt', 'r') as f:
+with open('db/FeaturesTest.txt', 'r') as f:
     for line in f:
         line = line.split(',')
         if len(line) == 1:
@@ -143,14 +157,12 @@ def fit(queue_stock, k_fold_num, queue_time, C, gamma):
               maxRunTime = 25,
               n_jobs = 2,
               k_fold_num = k_fold_num,
-              verbose = True)
+              verbose = False)
     t_fit = time.time() - t_fit
     queue_time.put(t_fit)
     queue_stock.put(stock)
-    print("    SVMs fitted")
-    print("                       Time elapsed: {}".format(t_fit))
-
-    # return t_fit
+    print("  SVMs fitted")
+    print("                       Time elapsed: {}\n".format(t_fit))
 
 def __runProcess__(queue_stock, svm_params, k_fold_num, maxRunTime, queue_time):
     try:
@@ -162,38 +174,26 @@ def __runProcess__(queue_stock, svm_params, k_fold_num, maxRunTime, queue_time):
         interrupted = False
         p.start() # Start fitting process
         while p.is_alive():
-            print("Time elapsed: {0:.2f}".format(t))
-            sys.stdout.write('\x1b[1A') # Go to the above line
-            sys.stdout.write('\x1b[2K') # Erase line
+            # print("Time elapsed: {0:.2f}".format(t))
+            # sys.stdout.write('\x1b[1A') # Go to the above line
+            # sys.stdout.write('\x1b[2K') # Erase line
+
             # Reach maximum time, terminate process
             if t >= maxRunTime:
                 p.terminate()
-                p.join()
+                p.join(10)
+                print("Interrupted!")
                 interrupted = True
                 break
             time.sleep(0.01)
             t += 0.01
     except Exception:
         p.terminate()
-        p.join()
+        p.join(10)
     
     return interrupted
 
-_gridSearch_ = True
-_train_test_data_ = True
-
-nxt_day_predict_list = [3,5,7,10]
-extraTreesFirst_list = np.arange(0.1,0.31,0.01)
-classifier_list = [None, 'OneVsOne']
-num_k_fold_list = [3,5,10]
-C_range = [2e-5*100**k for k in range(9)] # Max 2e11
-gamma_range = [2e-15*100**k for k in range(8)] # Max 2e-1
-rdms_kmeans = []
-rdms_clf = []
-maxRunTime = 120
-k_fold_num = 3
-
-if __name__ == "__main__":
+def main(main_it):
     ticker = 'TSLA'
     res_file = '{0}/{1}_{2}.json'.format(db_dir_res, ticker, int(time.time()))
     with open(res_file, 'w') as f:
@@ -215,46 +215,57 @@ if __name__ == "__main__":
 
     file_writting = dict()
 
-    queue_time = multiprocessing.Queue()
-    queue_stock = multiprocessing.Queue()
+    manager = multiprocessing.Manager()
+    queue_time = manager.Queue()
+    queue_stock = manager.Queue()
 
     for k, params in enumerate(it.product(*parameters.values()), start = 1):
 
         svm_params = dict(zip(keys,params))
         file_writting = {'ticker' : ticker, **svm_params, 'time' : [], 'preds_comp' : []}
         
-        # try:
-        print("\nIteration " + str(k) + ' of ' + str(size))
-        res_preds_comp = ''
-        t = ''
+        try:
+            print("\nMain it {0}/{1} - Sub it {2}/{3}".format(main_it[0],main_it[1],k,size))
+            res_preds_comp = ''
+            t = ''        
 
-        # ! Have some problem with parallel process fit
+            t_fit = 0
+            queue_time.put(t_fit)
+            queue_stock.put(stock)
+            interrupted = __runProcess__(queue_stock, svm_params, k_fold_num, maxRunTime, queue_time)
 
-        t_fit = 0
-        queue_time.put(t_fit)
-        queue_stock.put(stock)
-        interrupted = __runProcess__(queue_stock, svm_params, k_fold_num, maxRunTime, queue_time)
-        t_fit = queue_time.get()
-        stock = queue_stock.get()
-        # t_fit = fit(stock, **svm_params, k_fold_num = 3)
+            if interrupted or queue_time.empty():
+                file_writting['ERROR'] = 'interrupted'
+            else:
+                t_fit = queue_time.get()
+                stock = queue_stock.get()
 
-        if interrupted:
-            file_writting['ERROR'] = 'interrupted'
-        else:
-            labels_test = stock.predict_SVM_Cluster(stock.test)
-            res_preds_comp = trainScore(stock, labels_test)
+                labels_test = stock.predict_SVM_Cluster(stock.test)
+                res_preds_comp = trainScore(stock, labels_test)
 
-            t = [t_indicators, t_extraTrees, t_kSVMeans, t_fit]
+                t = [t_indicators, t_extraTrees, t_kSVMeans, t_fit]
 
-            file_writting['time'] = t
-            file_writting['preds_comp'] = res_preds_comp
+                file_writting['time'] = t
+                file_writting['preds_comp'] = res_preds_comp
 
-        with open(res_file,'a') as f:
-            json.dump(file_writting, f)
-            f.write('\n')
+            with open(res_file,'a') as f:
+                json.dump(file_writting, f)
+                f.write('\n')
         
-        # except Exception as e:
-        #     file_writting['ERROR'] = str(e)
-        #     with open(res_file,'a') as f:
-        #         json.dump(file_writting, f)
-        #         f.write('\n')
+        except KeyboardInterrupt:
+            break
+        except Exception as e:
+            file_writting['ERROR'] = str(e)
+            with open(res_file,'a') as f:
+                json.dump(file_writting, f)
+                f.write('\n')
+
+main_it = 50
+if __name__ == "__main__":
+    try:
+        for k in range(1, main_it+1):
+            main([k,main_it])
+    except KeyboardInterrupt:
+        print("Keyboard Interruption")
+    except Exception:
+        pass
