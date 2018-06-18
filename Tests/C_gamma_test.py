@@ -228,6 +228,8 @@ if __name__ == "__main__":
         res_preds_comp = ''
         t = ''
 
+        # ! Have some problem with parallel process fit
+
         t_fit = 0
         queue_time.put(t_fit)
         queue_stock.put(stock)
