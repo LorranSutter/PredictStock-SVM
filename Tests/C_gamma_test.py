@@ -56,7 +56,7 @@ ind_dict = {
 
 
 ind_funcs_params = []
-with open('db/FeaturesTest.txt', 'r') as f:
+with open('db/FeaturesTestOut2.txt', 'r') as f:
     for line in f:
         line = line.split(',')
         if len(line) == 1:
@@ -131,8 +131,10 @@ def ksvmeans(stock, random_state_kmeans, random_state_clf):
 
     return t_kSVMeans
 
-def fit(stock, k_fold_num, queue, C, gamma):
+def fit(queue_stock, k_fold_num, queue_time, C, gamma):
     print("  Fitting SVMs")
+    stock = queue_stock.get()
+    t_fit = queue_time.get()
     t_fit = time.time()
     stock.fit(predictNext_k_day = nxt_day_predict,
               fit_type = None,
@@ -143,22 +145,26 @@ def fit(stock, k_fold_num, queue, C, gamma):
               k_fold_num = k_fold_num,
               verbose = True)
     t_fit = time.time() - t_fit
+    queue_time.put(t_fit)
+    queue_stock.put(stock)
     print("    SVMs fitted")
     print("                       Time elapsed: {}".format(t_fit))
 
-    return t_fit
+    # return t_fit
 
-def __runProcess__(stock, svm_params, k_fold_num, maxRunTime, queue):
+def __runProcess__(queue_stock, svm_params, k_fold_num, maxRunTime, queue_time):
     try:
         p = multiprocessing.Process(target = fit,
                                     name = "fit",
-                                    args = (stock, k_fold_num, queue),
+                                    args = (queue_stock, k_fold_num, queue_time),
                                     kwargs = svm_params)
         t = 0
         interrupted = False
         p.start() # Start fitting process
         while p.is_alive():
-            print("Time elapsed: {0:.2f}".format(t), end = '\r')
+            print("Time elapsed: {0:.2f}".format(t))
+            sys.stdout.write('\x1b[1A') # Go to the above line
+            sys.stdout.write('\x1b[2K') # Erase line
             # Reach maximum time, terminate process
             if t >= maxRunTime:
                 p.terminate()
@@ -209,40 +215,44 @@ if __name__ == "__main__":
 
     file_writting = dict()
 
-    queue = multiprocessing.Queue()
+    queue_time = multiprocessing.Queue()
+    queue_stock = multiprocessing.Queue()
 
     for k, params in enumerate(it.product(*parameters.values()), start = 1):
 
         svm_params = dict(zip(keys,params))
         file_writting = {'ticker' : ticker, **svm_params, 'time' : [], 'preds_comp' : []}
         
-        try:
-            print("\nIteration " + str(k) + ' of ' + str(size))
-            res_preds_comp = ''
-            t = ''
+        # try:
+        print("\nIteration " + str(k) + ' of ' + str(size))
+        res_preds_comp = ''
+        t = ''
 
-            t_fit = 0
-            queue.put(t_fit)
-            interrupted = __runProcess__(stock, svm_params, k_fold_num, maxRunTime, queue)
-            # t_fit = fit(stock, **svm_params, k_fold_num = 3)
+        t_fit = 0
+        queue_time.put(t_fit)
+        queue_stock.put(stock)
+        interrupted = __runProcess__(queue_stock, svm_params, k_fold_num, maxRunTime, queue_time)
+        t_fit = queue_time.get()
+        stock = queue_stock.get()
+        # t_fit = fit(stock, **svm_params, k_fold_num = 3)
 
-            if interrupted:
-                file_writting['ERROR'] = 'interrupted'
-            else:
-                labels_test = stock.predict_SVM_Cluster(stock.test)
-                res_preds_comp = trainScore(stock, labels_test)
+        if interrupted:
+            file_writting['ERROR'] = 'interrupted'
+        else:
+            labels_test = stock.predict_SVM_Cluster(stock.test)
+            res_preds_comp = trainScore(stock, labels_test)
 
-                t = [t_indicators, t_extraTrees, t_kSVMeans, t_fit]
+            t = [t_indicators, t_extraTrees, t_kSVMeans, t_fit]
 
-                file_writting['time'] = t
-                file_writting['preds_comp'] = res_preds_comp
+            file_writting['time'] = t
+            file_writting['preds_comp'] = res_preds_comp
 
-            with open(res_file,'a') as f:
-                json.dump(file_writting, f)
-                f.write('\n')
+        with open(res_file,'a') as f:
+            json.dump(file_writting, f)
+            f.write('\n')
         
-        except Exception as e:
-            file_writting['ERROR'] = str(e)
-            with open(res_file,'a') as f:
-                json.dump(file_writting, f)
-                f.write('\n')
+        # except Exception as e:
+        #     file_writting['ERROR'] = str(e)
+        #     with open(res_file,'a') as f:
+        #         json.dump(file_writting, f)
+        #         f.write('\n')
