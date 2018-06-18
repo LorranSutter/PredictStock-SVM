@@ -5,6 +5,8 @@ import json
 import pickle
 import numpy as np
 import pandas as pd
+import itertools as it
+import multiprocessing
 import matplotlib.pyplot as plt
 from sklearn import svm
 from sklearn.cluster import KMeans
@@ -18,8 +20,7 @@ from Stock import Stock
 
 num_clusters = 5
 nxt_day_predict = 7
-db_dir_res = 'db/results'
-extraRandomTree = True
+db_dir_res = 'db/results/C_gamma'
 
 ind_dict = {
              'SMA' : ind.SMA,     # (df, n)
@@ -53,17 +54,17 @@ ind_dict = {
              'ULTOSC' : ind.ULTOSC   # (df)
              }
 
-if extraRandomTree:
-    ind_funcs_params = []
-    with open('db/FeaturesTestOut2.txt', 'r') as f:
-        for line in f:
-            line = line.split(',')
-            if len(line) == 1:
-                ind_funcs_params.append([ind_dict[line[0][:-1]], None])
-            else:
-                params = line[1].split()
-                params = map(int, params)
-                ind_funcs_params.append([ind_dict[line[0]], tuple(params)])
+
+ind_funcs_params = []
+with open('db/FeaturesTest.txt', 'r') as f:
+    for line in f:
+        line = line.split(',')
+        if len(line) == 1:
+            ind_funcs_params.append([ind_dict[line[0][:-1]], None])
+        else:
+            params = line[1].split()
+            params = map(int, params)
+            ind_funcs_params.append([ind_dict[line[0]], tuple(params)])
 
 def trainScore(stock, labels_test, verbose = False):
     preds = []
@@ -115,14 +116,14 @@ def ksvmeans(stock, random_state_kmeans, random_state_clf):
     print("  Fitting K-SVMeans")
     t_kSVMeans = time.time()
     stock.fit_kSVMeans(num_clusters = 4, 
-                       classifier = 'OneVsOne',
+                       classifier = None,
                        random_state_kmeans = random_state_kmeans,
                        random_state_clf = random_state_clf,
-                       consistent_clusters_kmeans = False,
-                       consistent_clusters_multiclass = False,
+                       consistent_clusters_kmeans = True,
+                       consistent_clusters_multiclass = True,
                        extraTreesClf = True,
                        predictNext_k_day = nxt_day_predict,
-                       extraTreesFirst = 0.9,
+                       extraTreesFirst = 0.2,
                        verbose = False)
     t_kSVMeans = time.time() - t_kSVMeans
     print("    K-SVMeans fitted")
@@ -130,13 +131,14 @@ def ksvmeans(stock, random_state_kmeans, random_state_clf):
 
     return t_kSVMeans
 
-def fit(stock, C_range, gamma_range, k_fold_num):
+def fit(stock, k_fold_num, queue, C, gamma):
     print("  Fitting SVMs")
     t_fit = time.time()
     stock.fit(predictNext_k_day = nxt_day_predict,
               fit_type = None,
+              C = C,
+              gamma = gamma,
               maxRunTime = 25,
-              parameters = {'C' : C_range, 'gamma' : gamma_range},
               n_jobs = 2,
               k_fold_num = k_fold_num,
               verbose = True)
@@ -145,6 +147,31 @@ def fit(stock, C_range, gamma_range, k_fold_num):
     print("                       Time elapsed: {}".format(t_fit))
 
     return t_fit
+
+def __runProcess__(stock, svm_params, k_fold_num, maxRunTime, queue):
+    try:
+        p = multiprocessing.Process(target = fit,
+                                    name = "fit",
+                                    args = (stock, k_fold_num, queue),
+                                    kwargs = svm_params)
+        t = 0
+        interrupted = False
+        p.start() # Start fitting process
+        while p.is_alive():
+            print("Time elapsed: {0:.2f}".format(t), end = '\r')
+            # Reach maximum time, terminate process
+            if t >= maxRunTime:
+                p.terminate()
+                p.join()
+                interrupted = True
+                break
+            time.sleep(0.01)
+            t += 0.01
+    except Exception:
+        p.terminate()
+        p.join()
+    
+    return interrupted
 
 _gridSearch_ = True
 _train_test_data_ = True
@@ -157,50 +184,65 @@ C_range = [2e-5*100**k for k in range(9)] # Max 2e11
 gamma_range = [2e-15*100**k for k in range(8)] # Max 2e-1
 rdms_kmeans = []
 rdms_clf = []
+maxRunTime = 120
+k_fold_num = 3
 
 if __name__ == "__main__":
-    ticker = 'TSLA2'
-    res_file = '{0}/{1}result.json'.format(db_dir_res, ticker)
+    ticker = 'TSLA'
+    res_file = '{0}/{1}_{2}.json'.format(db_dir_res, ticker, int(time.time()))
     with open(res_file, 'w') as f:
         pass
 
     stock = Stock(ticker, considerOHL = False, train_test_data = _train_test_data_, train_size = 0.8)
 
     t_indicators = indicators(stock)
+    # ? Problema
+    # ? Ao refazer em nova iteração a extraTrees, o self.df está com os features já filtrados
+    # ? Então ao fazer self.features = self.df[self.indicators_list]... alguns features não são encontrados
     t_extraTrees = extraTrees(stock)
+    t_kSVMeans = ksvmeans(stock, random_state_kmeans = None, random_state_clf = None)    
 
-    rdm_states = np.random.choice(len(stock.df.index), size = 30, replace = False)
+    parameters = {'C' : C_range, 'gamma' : gamma_range}
+    keys = parameters.keys()
+
+    size = len(C_range) * len(gamma_range)
 
     file_writting = dict()
 
-    for rdm_state in rdm_states:
-        res_preds_comp = ''
-        t = ''
+    queue = multiprocessing.Queue()
 
-        # ! Problema
-        # ! Ao refazer a extraTrees, o self.df está com os features já filtrados
-        # ! Então ao fazer self.features = self.df[self.indicators_list]... alguns features não são encontrados
+    for k, params in enumerate(it.product(*parameters.values()), start = 1):
 
-        # t_extraTrees = extraTrees(stock)
+        svm_params = dict(zip(keys,params))
+        file_writting = {'ticker' : ticker, **svm_params, 'time' : [], 'preds_comp' : []}
+        
+        try:
+            print("\nIteration " + str(k) + ' of ' + str(size))
+            res_preds_comp = ''
+            t = ''
 
-        # ! Problema
-        # ! Ao refazer o fit do K-SVMeans, a coluna predict_k_days some. I don't know why
+            t_fit = 0
+            queue.put(t_fit)
+            interrupted = __runProcess__(stock, svm_params, k_fold_num, maxRunTime, queue)
+            # t_fit = fit(stock, **svm_params, k_fold_num = 3)
 
-        t_kSVMeans = ksvmeans(stock, random_state_kmeans = rdm_state, random_state_clf = rdm_state)
-        t_fit = fit(stock, C_range = C_range, gamma_range = gamma_range, k_fold_num = 3)
+            if interrupted:
+                file_writting['ERROR'] = 'interrupted'
+            else:
+                labels_test = stock.predict_SVM_Cluster(stock.test)
+                res_preds_comp = trainScore(stock, labels_test)
 
-        labels_test = stock.predict_SVM_Cluster(stock.test)
-        res_preds_comp = trainScore(stock, labels_test)
+                t = [t_indicators, t_extraTrees, t_kSVMeans, t_fit]
 
-        print("Total time elapsed: {}".format(sum([t_indicators, t_extraTrees, t_kSVMeans, t_fit])))
+                file_writting['time'] = t
+                file_writting['preds_comp'] = res_preds_comp
 
-        t = [t_indicators, t_extraTrees, t_kSVMeans, t_fit]
-
-        file_writting['ticker'] = ticker
-        file_writting['random_state'] = str(rdm_state)
-        file_writting['time'] = t
-        file_writting['preds_comp'] = res_preds_comp
-
-        with open(res_file,'a') as f:
-            json.dump(file_writting, f)
-            f.write('\n')
+            with open(res_file,'a') as f:
+                json.dump(file_writting, f)
+                f.write('\n')
+        
+        except Exception as e:
+            file_writting['ERROR'] = str(e)
+            with open(res_file,'a') as f:
+                json.dump(file_writting, f)
+                f.write('\n')

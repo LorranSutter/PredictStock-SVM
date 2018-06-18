@@ -63,7 +63,7 @@ class Stock:
 
     # * Read data stock from file
     def __readTicker__(self, ticker):
-        if 'TSLA' in ticker:
+        if 'TSLA2' in ticker or 'TSLA2016' in ticker:
             self.wholeDF = pd.read_csv('db' + '/{0}.csv'.format(ticker), parse_dates = True)
             self.df = pd.read_csv('db' + '/{0}.csv'.format(ticker), parse_dates = True)
         else:
@@ -113,7 +113,7 @@ class Stock:
             splitFirst = int(len(self.extraTreesFeatures[i])*extraTreesFirst)
             features = [feature[0] for feature in self.extraTreesFeatures[i][:splitFirst]]
 
-            colsDf = [col for col in self.df.columns if 'perdict' in col or 'labels' in col]
+            colsDf = [col for col in self.df.columns if 'predict' in col or 'labels' in col]
             colsWholeDF = features + ['Open','High','Low','Close','Volume']
 
             self.df = pd.merge(self.wholeDF[colsWholeDF], self.df[colsDf], right_index = True, left_index = True)
