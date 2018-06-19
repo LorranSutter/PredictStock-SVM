@@ -206,7 +206,7 @@ def main(main_it):
     # ? Ao refazer em nova iteração a extraTrees, o self.df está com os features já filtrados
     # ? Então ao fazer self.features = self.df[self.indicators_list]... alguns features não são encontrados
     t_extraTrees = extraTrees(stock)
-    t_kSVMeans = ksvmeans(stock, random_state_kmeans = None, random_state_clf = None)    
+    t_kSVMeans = ksvmeans(stock, random_state_kmeans = None, random_state_clf = None)
 
     parameters = {'C' : C_range, 'gamma' : gamma_range}
     keys = parameters.keys()
@@ -222,7 +222,13 @@ def main(main_it):
     for k, params in enumerate(it.product(*parameters.values()), start = 1):
 
         svm_params = dict(zip(keys,params))
-        file_writting = {'ticker' : ticker, **svm_params, 'time' : [], 'preds_comp' : []}
+        file_writting = {'ticker' : ticker,
+                         'random_state_extraTrees' : stock.random_state_extraTrees,
+                         'random_state_kmeans' : stock.random_state_kmeans,
+                         'random_state_clf' : stock.random_state_clf,
+                         **svm_params,
+                         'time' : [],
+                         'preds_comp' : []}
         
         try:
             print("\nMain it {0}/{1} - Sub it {2}/{3}".format(main_it[0],main_it[1],k,size))

@@ -29,6 +29,7 @@ class Stock:
         self.clf = None
         self.stockSVMs = []
         self.available_labels = []
+        self.random_state_extraTrees = None
         self.random_state_kmeans = None
         self.random_state_clf = None
 
@@ -148,7 +149,12 @@ class Stock:
     # * Apply Extra Trees clf to the features
     def applyExtraTreesClassifier(self, predictNext_k_day,
                                         n_estimators = 10,
-                                        random_state = None):
+                                        random_state_extraTrees = None):
+        if random_state_extraTrees is None:
+            self.random_state_extraTrees = np.random.randint(0, len(self.wholeDF.index))
+        else:
+            self.random_state_extraTrees = random_state_extraTrees
+        
         self.targets = None
         found_target = False
         for col in self.wholeDF.columns:
@@ -175,7 +181,7 @@ class Stock:
             # self.features = self.wholeDF[self.indicators_list].iloc[predictNext_k_day-1:-predictNext_k_day]
             self.features = self.df[self.indicators_list].iloc[predictNext_k_day-1:-predictNext_k_day]
         
-        self.__fit_ExtraTreesClassifier__(self.features, self.targets, predictNext_k_day, n_estimators = n_estimators, random_state = random_state)
+        self.__fit_ExtraTreesClassifier__(self.features, self.targets, predictNext_k_day, n_estimators = n_estimators, random_state = self.random_state_extraTrees)
 
         # Sort features based in its importances
         i = self.__mapDayIdExtraTreesClf__[predictNext_k_day]
