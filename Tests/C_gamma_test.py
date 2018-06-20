@@ -193,20 +193,59 @@ def __runProcess__(queue_stock, svm_params, k_fold_num, maxRunTime, queue_time):
     
     return interrupted
 
-def main(main_it):
-    ticker = 'TSLA'
-    res_file = '{0}/{1}_{2}.json'.format(db_dir_res, ticker, int(time.time()))
+def get_random_states(ticker):
+    path = 'db/results/C_gamma/' + ticker + '/'
+    if not os.path.isdir(path):
+        os.mkdir(path)
+
+    random_state_extraTrees = []
+    random_state_kmeans = []
+    random_state_clf = []
+
+    files = os.listdir(path)
+    for f_txt in files:
+        with open(path + f_txt, 'r') as f:
+            for line in f:
+                line = json.loads(line)
+                if 'random_state_extraTrees' in line.keys():
+                    if line['random_state_extraTrees'] not in random_state_extraTrees:
+                        random_state_extraTrees.append(line['random_state_extraTrees'])
+                if 'random_state_kmeans' in line.keys():
+                    if line['random_state_kmeans'] not in random_state_kmeans:
+                        random_state_kmeans.append(line['random_state_kmeans'])
+                if 'random_state_clf' in line.keys():
+                    if line['random_state_clf'] not in random_state_clf:
+                        random_state_clf.append(line['random_state_clf'])
+    
+    return random_state_extraTrees, random_state_kmeans, random_state_clf
+
+def main(ticker, main_it):
+    random_state_extraTrees, random_state_kmeans, random_state_clf = get_random_states(ticker)
+    res_file = '{0}/{1}/{1}_{2}.json'.format(db_dir_res, ticker, int(time.time()))
     with open(res_file, 'w') as f:
         pass
 
-    stock = Stock(ticker, considerOHL = False, train_test_data = _train_test_data_, train_size = 0.8)
+    while True:
+        stock = Stock(ticker, considerOHL = False, train_test_data = _train_test_data_, train_size = 0.8)
 
-    t_indicators = indicators(stock)
-    # ? Problema
-    # ? Ao refazer em nova iteração a extraTrees, o self.df está com os features já filtrados
-    # ? Então ao fazer self.features = self.df[self.indicators_list]... alguns features não são encontrados
-    t_extraTrees = extraTrees(stock)
-    t_kSVMeans = ksvmeans(stock, random_state_kmeans = None, random_state_clf = None)
+        t_indicators = indicators(stock)
+        # ? Problema
+        # ? Ao refazer em nova iteração a extraTrees, o self.df está com os features já filtrados
+        # ? Então ao fazer self.features = self.df[self.indicators_list]... alguns features não são encontrados
+        t_extraTrees = extraTrees(stock)
+        t_kSVMeans = ksvmeans(stock, random_state_kmeans = None, random_state_clf = None)
+
+        if stock.random_state_extraTrees in random_state_extraTrees:
+            continue
+        elif stock.random_state_kmeans in random_state_kmeans:
+            continue
+        elif stock.random_state_clf in random_state_clf:
+            continue
+        else:
+            random_state_extraTrees.append(stock.random_state_extraTrees)
+            random_state_kmeans.append(stock.random_state_kmeans)
+            random_state_clf.append(stock.random_state_clf)
+            break
 
     parameters = {'C' : C_range, 'gamma' : gamma_range}
     keys = parameters.keys()
@@ -268,9 +307,10 @@ def main(main_it):
 
 main_it = 50
 if __name__ == "__main__":
+    ticker = 'ZTS'
     try:
         for k in range(1, main_it+1):
-            main([k,main_it])
+            main(ticker, [k,main_it])
     except KeyboardInterrupt:
         print("Keyboard Interruption")
     except Exception:
