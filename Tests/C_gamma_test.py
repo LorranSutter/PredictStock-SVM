@@ -19,7 +19,7 @@ from KSVMeans import KSVMeans
 from Stock import Stock
 
 num_clusters = 5
-nxt_day_predict = 7
+nxt_day_predict = 5
 db_dir_res = 'db/results/C_gamma'
 
 _gridSearch_ = True
@@ -262,6 +262,8 @@ def main(ticker, main_it):
 
         svm_params = dict(zip(keys,params))
         file_writting = {'ticker' : ticker,
+                         'predict_nxt_day' : nxt_day_predict,
+                         'cluster_number' : max(stock.df['labels_kmeans'])-1,
                          'random_state_extraTrees' : stock.random_state_extraTrees,
                          'random_state_kmeans' : stock.random_state_kmeans,
                          'random_state_clf' : stock.random_state_clf,
@@ -305,13 +307,13 @@ def main(ticker, main_it):
                 json.dump(file_writting, f)
                 f.write('\n')
 
-main_it = 50
+main_it = 8
 if __name__ == "__main__":
-    ticker = 'ZTS'
+    ticker = 'GOOGL'
     try:
         for k in range(1, main_it+1):
             main(ticker, [k,main_it])
     except KeyboardInterrupt:
         print("Keyboard Interruption")
-    except Exception:
-        pass
+    except Exception as e:
+        print(e)

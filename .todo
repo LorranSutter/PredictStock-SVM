@@ -1,4 +1,5 @@
 TODO:
+    ❑ Confusion matrix
     ❑ Check bollinger bands function consistency @file:///home/lorran/Documents/TCC/Codes/Indicators.py#32
     ❑ Create a better solution for empty stockSVM
     ❑ Parallelize cross validation

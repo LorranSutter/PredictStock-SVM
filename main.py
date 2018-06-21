@@ -132,11 +132,11 @@ def plotStock(stock, _gridSearch_, _train_test_data_, labels_test = None):
 _gridSearch_ = True
 _train_test_data_ = True
 
-C_range = [2e-5*100**k for k in range(11)]
-gamma_range = [2e-15*100**k for k in range(10)]
+C_range = [2e-5*100**k for k in range(5)]
+gamma_range = [2e-15*100**k for k in range(5)]
 
 if __name__ == "__main__":
-    ticker = 'TSLA2'
+    ticker = 'TSLA'
 
     stock = Stock(ticker, considerOHL = False, train_test_data = _train_test_data_, train_size = 0.8)
 
