@@ -19,7 +19,7 @@ from KSVMeans import KSVMeans
 from Stock import Stock
 
 num_clusters = 5
-nxt_day_predict = 5
+nxt_day_predict = 10
 db_dir_res = 'db/results/C_gamma'
 
 _gridSearch_ = True
@@ -193,7 +193,7 @@ def __runProcess__(queue_stock, svm_params, k_fold_num, maxRunTime, queue_time):
     
     return interrupted
 
-def get_random_states(ticker):
+def get_random_states(ticker, nxt_day_predict):
     path = 'db/results/C_gamma/' + ticker + '/'
     if not os.path.isdir(path):
         os.mkdir(path)
@@ -203,24 +203,27 @@ def get_random_states(ticker):
     random_state_clf = []
 
     files = os.listdir(path)
+    files = [f for f in files if '.json' in f]
     for f_txt in files:
         with open(path + f_txt, 'r') as f:
             for line in f:
                 line = json.loads(line)
-                if 'random_state_extraTrees' in line.keys():
-                    if line['random_state_extraTrees'] not in random_state_extraTrees:
-                        random_state_extraTrees.append(line['random_state_extraTrees'])
-                if 'random_state_kmeans' in line.keys():
-                    if line['random_state_kmeans'] not in random_state_kmeans:
-                        random_state_kmeans.append(line['random_state_kmeans'])
-                if 'random_state_clf' in line.keys():
-                    if line['random_state_clf'] not in random_state_clf:
-                        random_state_clf.append(line['random_state_clf'])
+                if 'predict_nxt_day' in line.keys():
+                    if str(line['predict_nxt_day']) == str(nxt_day_predict):
+                        if 'random_state_extraTrees' in line.keys():
+                            if line['random_state_extraTrees'] not in random_state_extraTrees:
+                                random_state_extraTrees.append(line['random_state_extraTrees'])
+                        if 'random_state_kmeans' in line.keys():
+                            if line['random_state_kmeans'] not in random_state_kmeans:
+                                random_state_kmeans.append(line['random_state_kmeans'])
+                        if 'random_state_clf' in line.keys():
+                            if line['random_state_clf'] not in random_state_clf:
+                                random_state_clf.append(line['random_state_clf'])
     
     return random_state_extraTrees, random_state_kmeans, random_state_clf
 
 def main(ticker, main_it):
-    random_state_extraTrees, random_state_kmeans, random_state_clf = get_random_states(ticker)
+    random_state_extraTrees, random_state_kmeans, random_state_clf = get_random_states(ticker, nxt_day_predict)
     res_file = '{0}/{1}/{1}_{2}.json'.format(db_dir_res, ticker, int(time.time()))
     with open(res_file, 'w') as f:
         pass
@@ -263,7 +266,7 @@ def main(ticker, main_it):
         svm_params = dict(zip(keys,params))
         file_writting = {'ticker' : ticker,
                          'predict_nxt_day' : nxt_day_predict,
-                         'cluster_number' : max(stock.df['labels_kmeans'])-1,
+                         'cluster_number' : str(max(stock.df['labels_kmeans'])-1),
                          'random_state_extraTrees' : stock.random_state_extraTrees,
                          'random_state_kmeans' : stock.random_state_kmeans,
                          'random_state_clf' : stock.random_state_clf,
@@ -307,13 +310,11 @@ def main(ticker, main_it):
                 json.dump(file_writting, f)
                 f.write('\n')
 
-main_it = 8
+main_it = 50
 if __name__ == "__main__":
-    ticker = 'GOOGL'
+    ticker = 'ZTS'
     try:
         for k in range(1, main_it+1):
             main(ticker, [k,main_it])
     except KeyboardInterrupt:
         print("Keyboard Interruption")
-    except Exception as e:
-        print(e)
