@@ -55,7 +55,7 @@ ind_dict = {
 
 if extraRandomTree:
     ind_funcs_params = []
-    with open('db/FeaturesTestOut2.txt', 'r') as f:
+    with open('db/FeaturesTest.txt', 'r') as f:
         for line in f:
             line = line.split(',')
             if len(line) == 1:
@@ -136,7 +136,7 @@ C_range = [2e-5*100**k for k in range(5)]
 gamma_range = [2e-15*100**k for k in range(5)]
 
 if __name__ == "__main__":
-    ticker = 'TSLA'
+    ticker = 'ZTS'
 
     stock = Stock(ticker, considerOHL = False, train_test_data = _train_test_data_, train_size = 0.8)
 
@@ -152,13 +152,14 @@ if __name__ == "__main__":
                        classifier = None,
                        random_state_kmeans = None,
                        random_state_clf = None,
-                       consistent_clusters_kmeans = True,
-                       consistent_clusters_multiclass = True,
+                       consistent_clusters_kmeans = False,
+                       consistent_clusters_multiclass = False,
                        extraTreesClf = True,
                        predictNext_k_day = nxt_day_predict,
                        extraTreesFirst = 1,
                        verbose = True)
-    if True:
+
+    if False:
         print("Init fit")
         t = time.time()
         stock.fit(predictNext_k_day = nxt_day_predict,
