@@ -11,8 +11,13 @@ stocks = 'stocks'
 start = dt.datetime(1950,1,1)
 end = dt.datetime.now()
 
-with open('lastId.txt', 'r') as f:
-    id_begin = int(f.readline())
+if os.path.exists('db/lastId.txt'):
+    with open('db/lastId.txt', 'r') as f:
+        id_begin = f.readline()
+else:
+    with open('lastId.txt', 'w') as f:
+        f.write('-1')
+        id_begin = -1
 
 nasdaq = pd.read_csv(db_dir + '/NASDAQ.csv')
 nasdaq = nasdaq.iloc[id_begin:]
@@ -31,10 +36,10 @@ for k, symbol in enumerate(symbols):
             os.mkdir(path)
         df.to_csv(path + '/{0}.csv'.format(symbol))
 
-    with open('lastId.txt', 'w') as f:
+    with open('db/lastId.txt', 'w') as f:
         f.write(str(id_begin + k + 1))
 
-with open('lastId.txt', 'w') as f:
+with open('db/lastId.txt', 'w') as f:
     f.write('-1')
 
 # df = quandl.get('BCHARTS/KRAKENUSD', returns ="pandas")

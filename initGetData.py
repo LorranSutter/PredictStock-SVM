@@ -8,13 +8,13 @@ import datetime as dt
 db_dir = 'db'
 
 def readPid():
-    if os.path.exists('pid.txt'):
-        with open('pid.txt', 'r') as f:
+    if os.path.exists('db/pid.txt'):
+        with open('db/pid.txt', 'r') as f:
             pid = f.readline()
         return pid
 
 def writePid(pid):
-    with open('pid.txt', 'w') as f:
+    with open('db/pid.txt', 'w') as f:
         f.write(str(pid))
 
 # Start processes
@@ -60,7 +60,7 @@ if __name__ == "__main__":
     
     print(pid)
     while True:
-        if time.time() - os.stat('pid.txt').st_mtime > 30:
+        if time.time() - os.stat('db/pid.txt').st_mtime > 30:
             if all([time.time() - os.stat(db_dir + '/stocks' + '/' + d).st_mtime > 30 for d in os.listdir(db_dir + '/stocks')]):
                 try:
                     os.kill(pid, signal.SIGKILL) # Kill idle process
