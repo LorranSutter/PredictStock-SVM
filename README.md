@@ -1,7 +1,5 @@
 # PredictStock
 
-## Synopsis
-
 Classification model for predicting stock market trending, based in machine learning techniques, such as Extremely Randomized Trees, K-Means, Support Vector Machines and K-Fold Cross-Validation.
 
 Coding presented as part of the Final Term Paper in Computacional Engineering of the [Universidade Federal de Juiz de Fora](http://www.ufjf.br/ufjf/)
