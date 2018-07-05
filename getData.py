@@ -1,6 +1,6 @@
 import os
 import sys
-import quandl
+# import quandl
 import datetime as dt
 import pandas as pd
 import pandas_datareader as web
