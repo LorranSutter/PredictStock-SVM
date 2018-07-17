@@ -196,6 +196,8 @@ median_props = {'color' : 'r'}
 for k,day in enumerate(days):
     plt.figure(k)
     plt.boxplot(res[day], sym = 'r.', boxprops = box_props, medianprops = median_props)
+    plt.axhline(y = 0.6, linestyle = '--', color = 'm')
+    plt.axhline(y = 0.5, linestyle = '--', color = 'm')
     plt.xticks(range(1,len(tickers)+1), tickers)
     plt.xlabel("Tickers")
     plt.ylabel("Acurácia")

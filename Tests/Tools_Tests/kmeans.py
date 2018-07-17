@@ -6,7 +6,7 @@ from sklearn.datasets import make_blobs
 
 from mpl_toolkits.mplot3d import Axes3D
 
-import Indicators as ind
+#import Indicators as ind
 
 db_dir = 'db'
 
@@ -33,11 +33,11 @@ changed = True
 X, y = make_blobs(n_samples = num_points, n_features = 2, centers = num_clusters)
 
 ticker = 'TSLA'
-df = pd.read_csv(db_dir + '/{0}.csv'.format(ticker), parse_dates = True, index_col = 1)
-df['RSI_10'] = ind.RSI(df,10)
+#df = pd.read_csv(db_dir + '/{0}.csv'.format(ticker), parse_dates = True, index_col = 1)
+#df['RSI_10'] = ind.RSI(df,10)
 # old_X = np.array([[k.timestamp(),c] for k,c in zip(df.index, df['Close'].values)])
-df = df.dropna()
-old_X = np.array([[k.timestamp(),c,rsi] for k,c,rsi in zip(df.index, df['Close'].values, df['RSI_10'].values)])
+#df = df.dropna()
+#old_X = np.array([[k.timestamp(),c,rsi] for k,c,rsi in zip(df.index, df['Close'].values, df['RSI_10'].values)])
 
 # old_X = old_X[np.random.choice(old_X.shape[0], len(old_X)//10, replace=False), :]
 
@@ -84,11 +84,16 @@ if plot:
     ax2 = fig2.add_subplot(111, projection='3d')
 
 
-# plt.figure(1)
-# plt.scatter(X[:,0],X[:,1], c = labels)
-# plt.scatter(V[:,0],V[:,1], marker='*', c='#050505', s=500)
+kmeans = KMeans(n_clusters = num_clusters, init='random', algorithm='full')
+kmeans = kmeans.fit(X)
+labels = kmeans.predict(X)
+V = kmeans.cluster_centers_
 
-# plt.show()
+plt.figure(1)
+plt.scatter(X[:,0],X[:,1], c = labels)
+plt.scatter(V[:,0],V[:,1], marker='*', c='#050505', s=500)
+
+plt.show()
 
 
 # --- Comparison - native K-Means --- #

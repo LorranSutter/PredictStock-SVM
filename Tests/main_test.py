@@ -9,7 +9,6 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.multiclass import OneVsOneClassifier, OneVsRestClassifier
 
 import Indicators as ind
-from KSVMeans import KSVMeans
 
 from Stock import Stock
 
