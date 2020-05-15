@@ -116,3 +116,5 @@ db/TSLA3\.csv
 *.ipynb
 
 db/results/
+
+.vscode
