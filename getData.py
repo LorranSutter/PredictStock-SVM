@@ -1,16 +1,21 @@
 import os
 import sys
-# import quandl
 import datetime as dt
+
 import pandas as pd
 import pandas_datareader as web
+
+'''
+Get all data from listed stocks in NASDAQ
+'''
 
 db_dir = 'db'
 stocks = 'stocks'
 
-start = dt.datetime(1950,1,1)
+start = dt.datetime(1950, 1, 1)
 end = dt.datetime.now()
 
+# Check if it have stopped querying data and continue from there
 if os.path.exists('db/lastId.txt'):
     with open('db/lastId.txt', 'r') as f:
         id_begin = f.readline()
@@ -28,7 +33,7 @@ for k, symbol in enumerate(symbols):
         continue
     if not os.path.exists('{0}/{1}/{2}/{3}.csv'.format(db_dir, stocks, symbol[0].upper(), symbol)):
         print("Getting {0} {1} data...".format(id_begin + k, symbol))
-        df = web.DataReader(symbol,'morningstar', start, end)
+        df = web.DataReader(symbol, 'morningstar', start, end)
         print("Data got!")
 
         path = db_dir + '/' + stocks + '/' + symbol[0].upper()
@@ -41,9 +46,3 @@ for k, symbol in enumerate(symbols):
 
 with open('db/lastId.txt', 'w') as f:
     f.write('-1')
-
-# df = quandl.get('BCHARTS/KRAKENUSD', returns ="pandas")
-
-# df.reset_index(inplace = True)
-# df.set_index('Date', inplace = True)
-# df = df.drop('Symbol',axis = 1)

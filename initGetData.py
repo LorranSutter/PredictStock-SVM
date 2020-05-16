@@ -5,6 +5,10 @@ import signal
 import subprocess
 import datetime as dt
 
+'''
+Manage data acquiring by getData.py script
+'''
+
 db_dir = 'db'
 
 def readPid():
@@ -51,7 +55,7 @@ if __name__ == "__main__":
     pid = readPid()
 
     try:
-        os.kill(int(pid), signal.SIGKILL) # Kill idle process
+        os.kill(int(pid), signal.SIGSTOP) # Kill idle process
     except:
         pass
     
@@ -63,7 +67,7 @@ if __name__ == "__main__":
         if time.time() - os.stat('db/pid.txt').st_mtime > 30:
             if all([time.time() - os.stat(db_dir + '/stocks' + '/' + d).st_mtime > 30 for d in os.listdir(db_dir + '/stocks')]):
                 try:
-                    os.kill(pid, signal.SIGKILL) # Kill idle process
+                    os.kill(pid, signal.SIGSTOP) # Kill idle process
                 except:
                     pass
 
