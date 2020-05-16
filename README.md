@@ -11,7 +11,6 @@
 </p>
 
 <p align="center">
-    <a href="#pencil2-machine-learning">Machine learning</a>&nbsp;&nbsp;|&nbsp;&nbsp;
     <a href="#chart_with_upwards_trend-problem-presentation">Problem presentation</a>&nbsp;&nbsp;|&nbsp;&nbsp;
     <a href="#pencil-dependencies">Dependencies</a>&nbsp;&nbsp;|&nbsp;&nbsp;
     <a href="#runner-how-to-run">How to run</a>&nbsp;&nbsp;|&nbsp;&nbsp;
@@ -20,11 +19,49 @@
     <a href="#cookie-credits">Credits</a>&nbsp;&nbsp;
 </p>
 
-## :pencil2: Machine learning
-
-Machine learning is a sub-field of [Artificial Intelligence](https://en.wikipedia.org/wiki/Artificial_intelligence) that aims to create algorithms to improve automatically through data.
-
 ## :chart_with_upwards_trend: Problem presentation
+
+This project aims to demonstrate an application of machine learning methods in predicting the oscillation of the stock market. Different techniques will be employed in order to create a more robust model and improve the predictions accuracy.
+
+The pipeline and short description of the employed methods are as follows:
+
+1. **Data acquiring:** Acquire stock history value using *pandas-datareader*.
+
+2. **Data preparation:** Remove missing and unecessary data using *pandas*.
+
+3. **Apply indicators:** Apply financial indicators in data collected using *pandas*.
+
+4. **Feature selection:**
+
+    **Extremely Randomized Trees**
+
+    Supervised method used to solve classification and regression problems. It is a variation of the classic *Random Forests*, which adds more randomization in node partition and choice of training sets. These changes reduce the bias and the variance of the model, proposing to alleviate the problems of underfitting and overfitting, respectively.
+
+    In the present problem, this method was used as a feature selector, measuring the importance of each financial indicator in the prediction.
+
+5. **Clusterization**
+
+    **K-Means**
+
+    Unsupervised method used in partitioning or clustering, which organizes the elements of a set into groups (clusters) so that the elements resemble each other. The number of clusters must be defined initially and this becomes the starting point of the method.
+
+    This method was employed to clusterize the data and reduce the number of support vectors in the next step.
+
+6. Classification
+
+    **Support Vector Machines**
+
+    Supervised method used to solve classification and regression problems with linear or nonlinear data. This methods aims to find the hyperplane that separates the training samples of the problem in their respective classes.
+    
+    This is the main step of this pipeline, where the classified data stands for upward or downward stock oscillation.
+
+7. Parameter tuning
+
+    **K-Fold Cross-validation**
+
+    Finally, we need a method to evaluate the parameters of the chosen model and tell what is the best combination of them.
+
+    This method randomly split the data set in *K* subsets. In each iteration, one set is used for test and the remaining *K-1* sets are employed for training, make possible to measure the accuracy and tuning the parameters.
 
 ## :pencil: Dependencies
 
@@ -41,8 +78,19 @@ pip3 install numpy matplotlib pandas pandas-datareader scikit-learn
 After install <a href="#pencil-dependencies">dependencies</a>, open your terminal in the folder you want to clone the project:
 
 ```sh
-# Clone this repo
-git clone https://github.com/LorranSutter/PredictStock.git
+git clone https://github.com/LorranSutter/PredictStock-SVM.git
+```
+
+First, you will need to acquire stocks data. The following command uses the file *db/NASDAQ.csv* as reference to list all stocks to get data. However, if you do not want to get the data from all the available stocks, just change the file removing unwanted stocks.
+
+```sh
+python3 initGetData.py
+```
+
+After acquire the stocks data, results will be stored in *db/stocks* folder. Then, you may run the main code changing the variable *ticker* inside the code with the desired ticker.
+
+```sh
+python3 main.py
 ```
 
 ## :computer: Technologies
