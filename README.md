@@ -31,33 +31,25 @@ The pipeline and short description of the employed methods are as follows:
 
 3. **Apply indicators:** Apply financial indicators in data collected using *pandas*.
 
-4. **Feature selection:**
-
-    **Extremely Randomized Trees**
+4. **Feature selection: Extremely Randomized Trees**
 
     Supervised method used to solve classification and regression problems. It is a variation of the classic *Random Forests*, which adds more randomization in node partition and choice of training sets. These changes reduce the bias and the variance of the model, proposing to alleviate the problems of underfitting and overfitting, respectively.
 
     In the present problem, this method was used as a feature selector, measuring the importance of each financial indicator in the prediction.
 
-5. **Clusterization**
-
-    **K-Means**
+5. **Clusterization: K-Means**
 
     Unsupervised method used in partitioning or clustering, which organizes the elements of a set into groups (clusters) so that the elements resemble each other. The number of clusters must be defined initially and this becomes the starting point of the method.
 
     This method was employed to clusterize the data and reduce the number of support vectors in the next step.
 
-6. Classification
-
-    **Support Vector Machines**
+6. **Classification: Support Vector Machines**
 
     Supervised method used to solve classification and regression problems with linear or nonlinear data. This methods aims to find the hyperplane that separates the training samples of the problem in their respective classes.
     
     This is the main step of this pipeline, where the classified data stands for upward or downward stock oscillation.
 
-7. Parameter tuning
-
-    **K-Fold Cross-validation**
+7. **Parameter tuning: K-Fold Cross-validation**
 
     Finally, we need a method to evaluate the parameters of the chosen model and tell what is the best combination of them.
 
