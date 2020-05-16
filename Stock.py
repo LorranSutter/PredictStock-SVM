@@ -524,7 +524,6 @@ class Stock:
 
         # Treat if the SVM cluster chosen have no data
         # Predict using larget SVM
-        # TODO Create a better solution
         if len(self.stockSVMs[cluster_id].values) == 0:
             biggest = cluster_id
             for k, stockSVM in enumerate(self.stockSVMs):

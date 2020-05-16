@@ -52,7 +52,6 @@ def ATR(df, n):
 def BBANDS(df, n, multiplier=2, middle=False):
     '''
     Bollinger Bands
-    TODO Check bollinger bands function consistency
     '''
     ma = pd.Series.rolling(df['Close'], n).mean()
     msd = pd.Series.rolling(df['Close'], n).std()

@@ -82,8 +82,6 @@ class StockSVM:
             clf = svc.fit(X, y)
             queue.put(clf)
 
-        # TODO maybe increase time for larger data
-
         def __runProcess__(svc, X_train, y_train, queue):
             try:
                 p = multiprocessing.Process(target=__fitSVC__,
@@ -172,7 +170,6 @@ class StockSVM:
         print("Best Estimators: ", best_estimators)
         print()
 
-        # TODO treat for svcs always interrupted
         if best_svc is not None:
             self.clf = best_svc.fit(vals, preds)
 
