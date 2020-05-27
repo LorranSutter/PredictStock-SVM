@@ -3,7 +3,7 @@
 </h1>
 
 <p align="center">
-    Classification model for predicting stock market trending, based in machine learning techniques, such as Extremely Randomized Trees, K-Means, Support Vector Machines and K-Fold Cross-Validation.
+    Classification model for predicting stock market trending, based on machine learning techniques, such as Extremely Randomized Trees, K-Means, Support Vector Machines and K-Fold Cross-Validation.
 </p>
 
 <p align="center">
