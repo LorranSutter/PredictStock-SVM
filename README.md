@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-    Coding presented as part of the Final Term Paper in Computacional Engineering of the <a href='http://www.ufjf.br/ufjf/'>Universidade Federal de Juiz de Fora</a>
+    Coding presented as part of the Capstone Project in Computational Engineering of the <a href='http://www.ufjf.br/ufjf/'>Universidade Federal de Juiz de Fora</a>
 </p>
 
 <p align="center">
