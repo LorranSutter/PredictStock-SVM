@@ -87,12 +87,12 @@ python3 main.py
 
 ## :computer: Technologies
 
-- [Python](https://www.python.org/)
-- [Pandas](https://pandas.pydata.org/)
-- [Pandas datareader](https://pandas-datareader.readthedocs.io/en/latest/)
-- [Sklearn](https://scikit-learn.org/stable/)
-- [NumPy](https://numpy.org/)
-- [Matplotlib](https://matplotlib.org/)
+- [Python](https://www.python.org/) - interpreted, high-level, general-purpose programming language
+- [Pandas](https://pandas.pydata.org/) - data analysis and manipulation tool
+- [Pandas datareader](https://pandas-datareader.readthedocs.io/en/latest/) - data access for pandas
+- [Sklearn](https://scikit-learn.org/stable/) - machine learning library
+- [NumPy](https://numpy.org/) - general-purpose array-processing package
+- [Matplotlib](https://matplotlib.org/) - plotting library for the Python
 
 ## :book: Main references
 
