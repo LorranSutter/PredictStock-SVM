@@ -3,11 +3,11 @@
 </h1>
 
 <p align="center">
-    Classification model for predicting stock market trending, based in machine learning techniques, such as Extremely Randomized Trees, K-Means, Support Vector Machines and K-Fold Cross-Validation.
+    Classification model for predicting stock market trending, based on machine learning techniques, such as Extremely Randomized Trees, K-Means, Support Vector Machines and K-Fold Cross-Validation.
 </p>
 
 <p align="center">
-    Coding presented as part of the Final Term Paper in Computacional Engineering of the <a href='http://www.ufjf.br/ufjf/'>Universidade Federal de Juiz de Fora</a>
+    Coding presented as part of the Capstone Project in Computational Engineering of the <a href='http://www.ufjf.br/ufjf/'>Universidade Federal de Juiz de Fora</a>
 </p>
 
 <p align="center">
@@ -87,12 +87,12 @@ python3 main.py
 
 ## :computer: Technologies
 
-- [Python](https://www.python.org/)
-- [Pandas](https://pandas.pydata.org/)
-- [Pandas datareader](https://pandas-datareader.readthedocs.io/en/latest/)
-- [Sklearn](https://scikit-learn.org/stable/)
-- [NumPy](https://numpy.org/)
-- [Matplotlib](https://matplotlib.org/)
+- [Python](https://www.python.org/) - interpreted, high-level, general-purpose programming language
+- [Pandas](https://pandas.pydata.org/) - data analysis and manipulation tool
+- [Pandas datareader](https://pandas-datareader.readthedocs.io/en/latest/) - data access for pandas
+- [Sklearn](https://scikit-learn.org/stable/) - machine learning library
+- [NumPy](https://numpy.org/) - general-purpose array-processing package
+- [Matplotlib](https://matplotlib.org/) - plotting library for the Python
 
 ## :book: Main references
 
