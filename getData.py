@@ -16,8 +16,8 @@ start = dt.datetime(1950, 1, 1)
 end = dt.datetime.now()
 
 # Check if it have stopped querying data and continue from there
-if os.path.exists('db/lastId.txt'):
-    with open('db/lastId.txt', 'r') as f:
+if os.path.exists(db_dir + '/lastId.txt'):
+    with open(db_dir + '/lastId.txt', 'r') as f:
         id_begin = f.readline()
 else:
     with open('lastId.txt', 'w') as f:
@@ -33,6 +33,8 @@ for k, symbol in enumerate(symbols):
         continue
     if not os.path.exists('{0}/{1}/{2}/{3}.csv'.format(db_dir, stocks, symbol[0].upper(), symbol)):
         print("Getting {0} {1} data...".format(id_begin + k, symbol))
+
+        # TODO morningstart is deprecated, change provider
         df = web.DataReader(symbol, 'morningstar', start, end)
         print("Data got!")
 
@@ -41,8 +43,8 @@ for k, symbol in enumerate(symbols):
             os.mkdir(path)
         df.to_csv(path + '/{0}.csv'.format(symbol))
 
-    with open('db/lastId.txt', 'w') as f:
+    with open(db_dir + '/lastId.txt', 'w') as f:
         f.write(str(id_begin + k + 1))
 
-with open('db/lastId.txt', 'w') as f:
+with open(db_dir + '/lastId.txt', 'w') as f:
     f.write('-1')

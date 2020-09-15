@@ -12,13 +12,13 @@ Manage data acquiring by getData.py script
 db_dir = 'db'
 
 def readPid():
-    if os.path.exists('db/pid.txt'):
-        with open('db/pid.txt', 'r') as f:
+    if os.path.exists(db_dir + '/pid.txt'):
+        with open(db_dir + '/pid.txt', 'r') as f:
             pid = f.readline()
         return pid
 
 def writePid(pid):
-    with open('db/pid.txt', 'w') as f:
+    with open(db_dir + '/pid.txt', 'w') as f:
         f.write(str(pid))
 
 # Start processes
@@ -46,7 +46,7 @@ def startProcess(processName):
 ## * ---------- MAIN ---------- ##
 if __name__ == "__main__":
 
-    with open('lastId.txt', 'r') as f:
+    with open(db_dir + '/lastId.txt', 'r') as f:
         lastId = f.readline()
     if lastId == '-1':
         print("\nAlready finished!\n")
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     
     print(pid)
     while True:
-        if time.time() - os.stat('db/pid.txt').st_mtime > 30:
+        if time.time() - os.stat(db_dir + '/pid.txt').st_mtime > 30:
             if all([time.time() - os.stat(db_dir + '/stocks' + '/' + d).st_mtime > 30 for d in os.listdir(db_dir + '/stocks')]):
                 try:
                     os.kill(pid, signal.SIGSTOP) # Kill idle process
